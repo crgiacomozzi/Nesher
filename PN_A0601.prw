@@ -156,6 +156,8 @@ User Function A0601A()
 
         oDlg:Activate()
 
+    Else
+        Help(,,"Cadastro de marketplaces",,"Não foi encontrado nenhum marketplace ou a API está com problemas.",1,0,,,,,,{"Por favor tente mais tarde."})
     EndIf
 
 Return
@@ -220,7 +222,8 @@ User Function A0601C(aItens)
     Local nX
     Local aMkt      := {}
 
-    cUrl  := "https://api-sandbox.koncili.com"
+    
+    cUrl := SuperGetMV("MV_YKONURL",.F.,"")
     cPath := "/externalapi/channel/list"
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -331,7 +334,7 @@ User Function A0601H(aItens,cMarket)
     Local cParser
     Local nX
 
-    cUrl  := "https://api-sandbox.koncili.com"
+    cUrl := SuperGetMV("MV_YKONURL",.F.,"")
     cPath := "/externalapi/releasetype/" + Alltrim(cMarket)
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 

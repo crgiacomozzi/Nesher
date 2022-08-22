@@ -19,6 +19,13 @@ User Function M0604(cCod,cCanal)
     Private oMarkBrow   := Nil
     Private aRotina     := MenuDef()
     Private aMovBan     := {}
+    Private dDtIni
+    Private dDtFim
+
+    Pergunte("M0602",.T.)
+
+    dDtIni    := MV_PAR01
+    dDtFim    := MV_PAR02
 
     FwMsgRun(,{ || U_M0604A(cCod,cCanal) }, "Processamento de títulos da Koncili", 'Carregando dados...')
 
@@ -117,7 +124,7 @@ User Function M0604A(cCod,cCanal)
 
     oTable:Create()
 
-    aCarrega = U_M0603B(cCod,cCanal)
+    aCarrega = U_M0603B(cCod,cCanal,dDtIni,dDtFim)
 
     If Len(aCarrega) > 0
 
@@ -156,7 +163,7 @@ Return
 Static Function MenuDef()
     Local aRot := {}
 
-    ADD Option aRot Title 'Processar'  Action 'FwMsgRun(,{ || U_M0604B(), CloseBrowse() }, "Enviando resolução dos títulos selecionados para Koncili", "Aguarda...")' Operation 1 Access 0
+    ADD Option aRot Title 'Resolver'  Action 'FwMsgRun(,{ || U_M0604B(), CloseBrowse() }, "Enviando resolução dos títulos selecionados para Koncili", "Aguarda...")' Operation 1 Access 0
     ADD Option aRot Title 'Visualizar' Action 'FwMsgRun(,{ || U_M0603N(TRB3->TMP_CANAL,TRB3->TMP_CODMAR) }, "Processando dos títulos selecionados", "Aguarda...")' Operation 2 Access 0
 
 Return(aRot)
@@ -165,11 +172,12 @@ User Function M0604B()
     Local cCod
     Local cCanal
     Local aItens := {}
-    Local nX, nY
+    Local nX, nY, nZ
     Local cIds   := ""
     Local nTotal := 0
     Local nLimit := 100
     Local nVezes := 0
+    Local cRecno := ""
 
     TRB3->(dbGoTop())
 
@@ -197,6 +205,20 @@ User Function M0604B()
         Next nX
     Next nY
 
+    If Len(aItens) > 0
+        For nZ := 1 to Len(aItens)
+            cRecno := ""
+            cRecno := U_M0604E(Alltrim(aItens[nZ,2]))
+            If !Empty(Alltrim(cRecno))
+                DbSelectArea("SE1")
+                SE1->(dbGoTo(cRecno))
+                RecLock("SE1",.F.)
+                    SE1->E1_RESOLKO := "S"
+                SE1->(MsUnlock())
+            EndIf
+        Next nZ
+    EndIf
+
 Return
 
 User Function M0604C(cCanal,cOrder,aItens)
@@ -208,11 +230,8 @@ User Function M0604C(cCanal,cOrder,aItens)
     Local oJson
     Local cParser
     Local nX
-    Local aOcorre   := {}
-
-    U_M0603R(cCanal,@aOcorre)
     
-    cUrl  := "https://api-sandbox.koncili.com"
+    cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
     cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal)
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -233,7 +252,7 @@ User Function M0604C(cCanal,cOrder,aItens)
         If Empty(cParser)
             For nX := 1 To Len(oJson['elements'])
                 cId    := oJson['elements'][nX]['id']
-                AADD( aItens, { cId } )
+                AADD( aItens, { cId, cOrder } )
             Next nX
         EndIf
     EndIF
@@ -249,7 +268,7 @@ User Function M0604D(cIds)
     Local aHeader   := {}
     Local oRest
 
-    cUrl  := "https://api-sandbox.koncili.com"
+    cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
     cPath := "/externalapi/orderextract/resolve/batch"
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -267,3 +286,28 @@ User Function M0604D(cIds)
     EndIf
 
 Return
+
+User Function M0604E(cOrder)
+    Local cAlias   := GetNextAlias()
+    Local cQuery
+    Local cRecno   := ""
+
+    cQuery := "SELECT R_E_C_N_O_ AS RECNO "
+    cQuery += "FROM " + RetSqlName("SE1") + " "
+    cQuery += "WHERE D_E_L_E_T_ = ' ' "
+    cQuery += "AND E1_FILIAL = '" + xFilial("SE1") + "' "
+    cQuery += "AND E1_NUMLIQ != '' "
+    cQuery += "AND E1_IDWARE = '" + cOrder + "' "
+
+    MPSysOpenQuery( cQuery, cAlias )
+
+    DBSelectArea(cAlias)
+    (cAlias)->(dbGoTop())
+    
+    If !Empty(Alltrim((cAlias)->RECNO))
+        cRecno := (cAlias)->RECNO
+    EndIf
+    
+    (cAlias)->(dbCloseArea())    
+
+Return(aCarrega)

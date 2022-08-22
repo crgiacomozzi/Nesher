@@ -19,8 +19,17 @@ User Function M0603(cCod,cCanal)
     Private oMarkBrow   := Nil
     Private aRotina     := MenuDef()
     Private aMovBan     := {}
+    Private dDtIni      
+    Private dDtFim
+    Private dDtBaixa
 
-    FwMsgRun(,{ || U_M0603A(cCod,cCanal) }, "Processamento de títulos da Koncili", 'Carregando dados...')
+    Pergunte("M0602",.T.)
+
+    dDtIni    := MV_PAR01
+    dDtFim    := MV_PAR02
+    dDtBaixa  := MV_PAR03
+    
+    FwMsgRun(,{ || U_M0603A(cCod,cCanal,dDtIni,dDtFim) }, "Processamento de títulos da Koncili", 'Carregando dados...')
 
     oMarkBrow := FwMarkBrowse():New()
     oMarkBrow:SetAlias('TRB2')
@@ -48,7 +57,7 @@ User Function M0603(cCod,cCanal)
 
 Return
 
-User Function M0603A(cCod,cCanal)
+User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
     Local nI, nX
     Local aCarrega := {}
 
@@ -117,7 +126,7 @@ User Function M0603A(cCod,cCanal)
 
     oTable:Create()
 
-    aCarrega = U_M0603B(cCod,cCanal)
+    aCarrega = U_M0603B(cCod,cCanal,dDtIni,dDtFim)
 
     If Len(aCarrega) > 0
 
@@ -156,107 +165,34 @@ Return
 Static Function MenuDef()
     Local aRot := {}
 
-    ADD Option aRot Title 'Processar'    Action 'FwMsgRun(,{ || U_M0603G(), CloseBrowse() }, "Processando dos títulos selecionados", "Aguarda...")' Operation 1 Access 0
-    ADD Option aRot Title 'Visualizar'   Action 'FwMsgRun(,{ || U_M0603N(TRB2->TMP_CANAL,TRB2->TMP_CODMAR) }, "Processando dos títulos selecionados", "Aguarda...")' Operation 2 Access 0
-    ADD Option aRot Title 'Cancelamento' Action 'FwMsgRun(,{ || U_M0603X(), CloseBrowse() }, "Processando cancelamento e liquidaçã dos títulos selecionados", "Aguarda...")' Operation 1 Access 0
+    ADD Option aRot Title 'Processar'    Action 'FwMsgRun(,{ || U_M0603G(), CloseBrowse() }, "Processando dos títulos selecionados", "Aguarde...")' Operation 1 Access 0
+    ADD Option aRot Title 'Visualizar'   Action 'FwMsgRun(,{ || U_M0603N(TRB2->TMP_CANAL,TRB2->TMP_CODMAR) }, "Processando dos títulos selecionados", "Aguarde...")' Operation 2 Access 0
+    ADD Option aRot Title 'Cancelamento' Action 'FwMsgRun(,{ || U_M0603X(), CloseBrowse() }, "Processando cancelamento e liquidação dos títulos selecionados", "Aguarde...")' Operation 1 Access 0
 
 Return(aRot)
 
-User Function M0603B(cCod,cCanal)
-    Local cUrl
-    Local cPath
-    Local cAuth
-    Local aHeader   := {}
-    Local oRest
-    Local oJson
-    Local cParser
-    Local nX, nY, nZ
+User Function M0603B(cCod,cCanal,dDtIni,dDtFim)
+    Local nX, nZ
     Local aBaixa    := {}
-    Local aTitulo   := {}
-    Local dDtIni    := Substr(DTOS(MV_PAR01),1,4) + "-" + Substr(DTOS(MV_PAR01),5,2) + "-" + Substr(DTOS(MV_PAR01),7,2)
-    Local dDtFim    := Substr(DTOS(MV_PAR02),1,4) + "-" + Substr(DTOS(MV_PAR02),5,2) + "-" + Substr(DTOS(MV_PAR02),7,2)
-    Local nLimit    := 1
-    Local nOffSet   := 1
-    Local nCount    := 1
-    Local nVezes    := 1
-    Local cTipo
     Local nValPag   := 0.00
     Local nValLiq   := 0.00
     Local nValJur   := 0.00
-    Local lBaixado  := .F.
-    Local lLiquida  := .F.
-    Local cStatus   := ""
 
     aMovBan := {}
 
-    If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
-
-        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal)
-
-        For nY := 1 to nVezes
-            cUrl  := "https://api-sandbox.koncili.com"
-            cPath := "/externalapi/orderextract/unresolveds?offset="+ Alltrim(Str(nOffSet)) + "&initDate=" + dDtIni + "&endDate=" + dDtFim
-            If !Empty(Alltrim(cCod))
-                cPath += "&conciliationId=" + Alltrim(cCod) + "&channelName=" + Alltrim(cCanal)
+    If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
+        For nZ := 1 To Len(aNaoRes)
+            if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod)
+                AADD(aBaixa, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14]})
+                nX := Len(aBaixa)
+                nValPag := 0.00
+                nValLiq := 0.00
+                nValJur := 0.00
+                U_M0603D(aBaixa[nX,10],cCanal,@nValPag,@nValLiq,@nValJur)
+                aBaixa[nX,6] += nValPag
+                aBaixa[nX,7] += nValLiq
+                aBaixa[nX,8] += nValJur
             EndIf
-            cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
-
-            Aadd(aHeader,'Accept: application/json')
-            Aadd(aHeader,'Content-Type: application/json')
-            AADD(aHeader, "gumgaToken: " + cAuth)
-
-            oRest := FWRest():new(cUrl)
-            oRest:setPath(cPath)
-            oJson := JsonObject():new()
-
-            If oRest:Get(aHeader)
-                If ValType(oRest:ORESPONSEH) == "O"
-                    cJson := oRest:GetResult()
-                    cJson := StrTran(cJson,"ï»¿","")
-                    cParser  := oJson:FromJson(cJson)
-                EndIf
-                If Empty(cParser)
-                    For nX := 1 To Len(oJson['content'])
-                        cOrder  := oJson['content'][nX]['orderCode']
-                        cData   := StrTran(SubStr(oJson['content'][nX]['conciliationEndDate'],1,10),"-","")
-                        cTipo   := oJson['content'][nX]['extractType']
-                        nValor  := oJson['content'][nX]['releasedValue']
-                        If nValor < 0 
-                            nValor := nValor * (-1)
-                        EndIf
-                        aTitulo := U_M0603C(cOrder)
-                        If Len(aTitulo) > 0
-                            nValPag := 0.00
-                            nValLiq := 0.00
-                            nValJur := 0.00
-                            nPosField := 0
-                            nPosField := aScan( aBaixa, {|x| AllTrim(x[10]) == Alltrim(cOrder) } )
-                            If nPosField == 0
-                                AADD( aBaixa, { aTitulo[1,1],aTitulo[1,2],aTitulo[1,3],aTitulo[1,4],aTitulo[1,5],nValPag,nValLiq,nValJur,cData,cOrder,cStatus, .T., .T. } )
-                            EndIf
-                        EndIf
-                    Next nX
-                EndIf
-            EndIf
-            nOffSet += nLimit
-        Next nY
-
-        freeObj(oJson)
-
-        For nZ := 1 To Len(aBaixa)
-            nValPag := 0.00
-            nValLiq := 0.00
-            nValJur := 0.00
-            U_M0603D(aBaixa[nZ,10],cCanal,@nValPag,@nValLiq,@nValJur)
-            aBaixa[nZ,6] += nValPag
-            aBaixa[nZ,7] += nValLiq
-            aBaixa[nZ,8] += nValJur
-            lBaixado := U_M0603K(aBaixa[nZ,10],MV_PAR03)
-            lLiquida := U_M0603L(aBaixa[nZ,1],aBaixa[nZ,2],aBaixa[nZ,4])
-            cStatus := U_M0603M(lBaixado,lLiquida)
-            aBaixa[nZ,11] := cStatus
-            aBaixa[nZ,12] := Iif(lBaixado,"S","N")
-            aBaixa[nZ,13] := Iif(lLiquida,"S","N")
         Next nZ
     EndIf
 
@@ -357,7 +293,7 @@ User Function M0603E(cOrder,cCanal,aOcoKon)
     Local cParser
     Local nX
 
-    cUrl  := "https://api-sandbox.koncili.com"
+    cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
     cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal)
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -433,43 +369,76 @@ User Function M0603G()
     Local cMsg
     Local nX
     Local nOpcao   := 3
+    Local cStatus
+    Local nPosArr
 
     TRB2->(dbGoTop())
 
     cCod    := Alltrim(TRB2->TMP_IDCONC)
     cCanal  := Alltrim(TRB2->TMP_CANAL)
 
-    If MV_PAR03 != dDataBase
-        Help(,,"Processamento de títulos Koncili",,"A data basa de sistema deve ser a mesma que a data da baixa dos títulos.",1,0,,,,,,{"Altere a data basa do sistema."})
+    If dDtBaixa != dDataBase
+        Help(,,"Processamento de títulos Koncili",,"A data base de sistema deve ser a mesma que a data da baixa dos títulos.",1,0,,,,,,{"Altere a data base do sistema."})
         Return
     EndIf
 
     While !TRB2->(Eof())
         Begin Transaction
-            If !Empty(TRB2->TMP_OK)
-                If TRB2->TMP_LIQUID == "N" .AND. TRB2->TMP_VALCOM > 0
-                    lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,cMsg,nOpcao)
-                    If !lLiquida
-                        AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+            RecLock("TRB2", .F.)
+                If !Empty(TRB2->TMP_OK)
+                    If TRB2->TMP_LIQUID == "N" .AND. TRB2->TMP_VALCOM > 0
+                        lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao)
+                        If !lLiquida
+                            AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+                        EndIf
+                    EndIf
+                    If TRB2->TMP_BAIXA == "N" .AND. TRB2->TMP_VALPAG > 0
+                        lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcao)
+                        If !lBaixado
+                            AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+                        EndIf
                     EndIf
                 EndIf
-                If TRB2->TMP_BAIXA == "N" .AND. TRB2->TMP_VALPAG > 0
-                    lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,cMsg,nOpcao)
-                    If !lBaixado
-                        AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+                If lLiquida .AND. !lBaixado
+                    If TRB2->TMP_STATUS == "A"
+                        cStatus := "C"
+                    ElseIf TRB2->TMP_STATUS == "B"
+                        cStatus := "D"
                     EndIf
+                    nPosArr := 0
+                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                    If nPosArr > 0
+                        aNaoRes[nPosArr,11] := cStatus
+                        aNaoRes[nPosArr,13] := "S"
+                    EndIf
+                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Liquidado" } )
+                ElseIf !lLiquida .AND. lBaixado
+                    If TRB2->TMP_STATUS == "A"
+                        cStatus := "B"
+                    ElseIf TRB2->TMP_STATUS == "C"
+                        cStatus := "D"
+                    EndIf
+                    nPosArr := 0
+                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                    If nPosArr > 0
+                        aNaoRes[nPosArr,11] := cStatus
+                        aNaoRes[nPosArr,12] := "S"
+                    EndIf
+                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Baixado" } )
+                ElseIf lLiquida .AND. lBaixado
+                    nPosArr := 0
+                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                    If nPosArr > 0
+                        aNaoRes[nPosArr,11] := "D"
+                        aNaoRes[nPosArr,12] := "S"
+                        aNaoRes[nPosArr,13] := "S"
+                    EndIf
+                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Baixado e Liquidado" } )
                 EndIf
-            EndIf
-        If lLiquida .AND. !lBaixado
-            AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOC(TRB2->TMP_DTPGT),"Título Liquidado" } )
-        ElseIf !lLiquida .AND. lBaixado
-            AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOC(TRB2->TMP_DTPGT),"Título Baixado" } )
-        ElseIf lLiquida .AND. lBaixado
-            AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOC(TRB2->TMP_DTPGT),"Título Baixado e Liquidado" } )
-        EndIf
-        lLiquida := .F.
-        lBaixado := .F.
-        TRB2->(dbSkip())
+                lLiquida := .F.
+                lBaixado := .F.
+            MsUnlock()
+            TRB2->(dbSkip())
         End Transaction
     EndDo
 
@@ -496,7 +465,7 @@ User Function M0603G()
 
 Return
 
-/*/{Protheus.doc} M0601H
+/*/{Protheus.doc} M0603H
     Função que realiza o MSExecAuto da liquidação do título
     @type  Function
     @author Pono
@@ -580,6 +549,21 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
             For nI := 1 To Len(aErro)
                 cMsg += aErro[nI] + CRLF
             Next nI
+        Else
+            dbSelectArea("SE1")
+            SE1->(dbSetOrder(1))
+            If (SE1->(dbSeek("02"+cPreLiq+Alltrim(cNumLiq)+"L"+cTipLiq)))
+                cCodPed := SE1->E1_YPEDPRE
+                dbSelectArea("SE5")
+                SE5->(dbSetOrder(7))
+                If (SE5->(dbSeek("02"+cPreLiq+Alltrim(cNumLiq)+"L"+cTipLiq+cCliLiq+cLojLiq)))
+                    RecLock("SE5",.F.)
+                    SE5->E5_YIDPREC := Alltrim(cCodPed)
+                    SE5->(MsUnlock())
+                EndIf
+                SE5->(dbCloseArea())
+            EndIf
+            SE1->(dbCloseArea())
         EndIf
 
         SA6->(dbCloseArea())
@@ -590,6 +574,8 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
         SE1->(dbSetOrder(2))
         If SE1->(dbSeek(xFilial("SE1")+cCliLiq+cLojLiq+cPreLiq+Alltrim(cNumLiq)+"L"+cTipLiq))
             cCanLiq := SE1->E1_NUMLIQ
+        ElseIf SE1->(dbSeek(xFilial("SE1")+cCliLiq+cLojLiq+"1  "+Alltrim(cNumLiq)+"L"+cTipLiq))
+            cCanLiq := SE1->E1_NUMLIQ
         Else
             lRet := .F.
             cMsg := "Título : " + cNumLiq + CRLF
@@ -598,7 +584,7 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
         EndIf
 
         If !Empty(Alltrim(cCanLiq))
-            msExecAuto( { |a,b,c,d,e,f| FINA460(a,b,c,d,e) }, Nil, Nil, Nil, nOpcao, Nil, cCanLiq )
+            msExecAuto( { |a,b,c,d,e,f| FINA460(a,b,c,d,e,f) }, Nil, Nil, Nil, nOpcao, Nil, cCanLiq )
             If lMsErroAuto
                 lRet := .F.
                 MostraErro()
@@ -641,12 +627,18 @@ User Function M0603I(cCliente,cLoja,cPrefixo,cNumero,cParcela,cTipo,nValPago,nJu
     Local lBaixa            := .T.
     Local aTitBaixa         := {}
     Local aBanco	        := Separa( GetNewPar("MV_YECOBCO","001/0021 /84000     "),"/")
-    Local cHist             := "BAIXA AUTOMATICA E-COMMERCE"
+    Local cHist             := ""
     Local cMotBai           := "NOR"
     Local nI
     Local aErro             := {}
     Private lMsErroAuto	    := .F.
     Private lAutoErrNoFile  := .T.
+
+    If nOpcao == 3
+        cHist := "BAIXA AUTOMATICA E-COMMERCE " + cCodMkp
+    ElseIf nOpcao == 5
+        cHist := "EXCLUSAO DE BAIXA AUTOMATICA E-COMMERCE " + cCodMkp
+    EndIf
 
     dbSelectArea("SA6")
     SA6->(dbGotop())
@@ -686,11 +678,10 @@ User Function M0603I(cCliente,cLoja,cPrefixo,cNumero,cParcela,cTipo,nValPago,nJu
             If (SE1->(dbSeek("02"+cPrefixo+Alltrim(cNumero)+cParcela+cTipo)))
                 cCodPed := SE1->E1_YPEDPRE
                 dbSelectArea("SE5")
-                SE5->(dbSetOrder())
-                If (SE5->(dbSeek("02")+cPrefixo+Alltrim(cNumero)+cParcela+cTipo))
+                SE5->(dbSetOrder(7))
+                If (SE5->(dbSeek("02"+cPrefixo+Alltrim(cNumero)+cParcela+cTipo+cCliente+cLoja)))
                     RecLock("SE5",.F.)
-                    //SE5->E5_IDWARE  := cCodMkp
-                    SE5->E5_YIDPREC := cCodPed
+                    SE5->E5_YIDPREC := Alltrim(cCodPed)
                     SE5->(MsUnlock())
                 EndIf
                 SE5->(dbCloseArea())
@@ -706,17 +697,25 @@ User Function M0603I(cCliente,cLoja,cPrefixo,cNumero,cParcela,cTipo,nValPago,nJu
 Return(lBaixa)
 
 User Function M0603J(cMarca,lMarcar)
-    Local cAlias := 'TRB2'
-    Local lRet   := .T.
+    Local aAreaMark := GetArea()
+    Local cAlias    := 'TRB2'
+    Local lRet      := .T.
  
     dbSelectArea(cAlias)
     (cAlias)->(dbGoTop())
     While !(cAlias)->( Eof() )
         RecLock((cAlias),.F.)
-        (cAlias)->TMP_OK := IIf( lMarcar, cMarca, '  ' )
+            If !Empty((cAlias)->TMP_OK)
+                (cAlias)->TMP_OK := " "
+            ElseIf Empty((cAlias)->TMP_OK)
+                (cAlias)->TMP_OK := cMarca
+            EndIf
+            //(cAlias)->TMP_OK := Iif( lMarcar, cMarca, " " )
         MsUnlock()
         (cAlias)->( dbSkip() )
     EndDo
+
+    RestArea(aAreaMark)
 
 Return(lRet)
 
@@ -727,6 +726,7 @@ Return(lRet)
     @since 04/07/2022
     @version 12.1.33
     @param cWareId, Character, código do título no marketplace
+    @param dData  , Character, data do movimento na API Koncili
     @return Logical, retorna false caso título já tenha sido baixado anteriormente.
     /*/
 User Function M0603K(cWareId,dData)
@@ -747,8 +747,8 @@ User Function M0603K(cWareId,dData)
     
     If (cAlias)->E1_SALDO == 0
         lRet := .T.
-    ElseIf (cAlias)->E1_SALDO > 0 .AND. (cAlias)->E1_SALDO <> (cAlias)->E1_VALOR
-        lRet := U_M0603W((cAlias)->E1_PREFIXO, (cAlias)->E1_NUM, (cAlias)->E1_PARCELA, (cAlias)->E1_CLIFOR, (cAlias)->E1_LOJA,dData)
+    ElseIf (cAlias)->E1_SALDO > 0 .AND. (cAlias)->E1_SALDO < (cAlias)->E1_VALOR
+        lRet := U_M0603W((cAlias)->E1_PREFIXO, (cAlias)->E1_NUM, (cAlias)->E1_PARCELA, (cAlias)->E1_CLIENTE, (cAlias)->E1_LOJA,dData)
     EndIf
     
     (cAlias)->(dbCloseArea())
@@ -764,7 +764,7 @@ Return(lRet)
     @param cWareId, Character, código do título no marketplace
     @return Logical, retorna false caso título já tenha sido liquidado anteriormente.
     /*/
-User Function M0603L(cCliente,cLoja,cNumero)
+User Function M0603L(cCliente,cLoja,cNumero,dData)
     Local cAlias := GetNextAlias()
     Local cQuery
     Local lRet   := .F.
@@ -773,6 +773,7 @@ User Function M0603L(cCliente,cLoja,cNumero)
     cQuery += "FROM " + RetSqlName("SE1") + " E1 "
     cQuery += "WHERE E1.D_E_L_E_T_ = ' ' "
     cQuery += "AND E1_FILIAL = '02' "
+    cQuery += "AND E1_EMISSAO = '" + DTOS(dData) + "' "
     cQuery += "AND E1_CLIENTE = '" + cCliente + "' "
     cQuery += "AND E1_LOJA = '" + cLoja + "' "
     cQuery += "AND (E1_PREFIXO = 'CCA' OR E1_PREFIXO = '1') "
@@ -863,7 +864,7 @@ User Function M0603O(cCanal,cOrder,aItens)
 
     U_M0603R(cCanal,@aOcorre)
     
-    cUrl  := "https://api-sandbox.koncili.com"
+    cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
     cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal)
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -958,7 +959,7 @@ User Function M0603R(cCanal,aOcorre)
     Local cParser
     Local nX
 
-    cUrl  := "https://api-sandbox.koncili.com"
+    cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
     cPath := "/externalapi/releasetype/"+ Alltrim(cCanal)
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -1192,43 +1193,80 @@ User Function M0603X()
     Local aErros   := {}
     Local cMsg
     Local nOpcao   := 5
+    Local nPosArr
 
     TRB2->(dbGoTop())
 
     cCod    := Alltrim(TRB2->TMP_IDCONC)
     cCanal  := Alltrim(TRB2->TMP_CANAL)
 
-    If MV_PAR03 != dDataBase
-        Help(,,"Processamento de títulos Koncili",,"A data basa de sistema deve ser a mesma que a data da baixa dos títulos.",1,0,,,,,,{"Altere a data basa do sistema."})
+    If dDtBaixa != dDataBase
+        Help(,,"Processamento de títulos Koncili",,"A data base de sistema deve ser a mesma que a data da baixa dos títulos.",1,0,,,,,,{"Altere a data base do sistema."})
         Return
     EndIf
 
     While !TRB2->(Eof())
         Begin Transaction
-            If !Empty(TRB2->TMP_OK)
-                If TRB2->TMP_LIQUID == "S"
-                    lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,cMsg,nOpcao)
-                    If !lLiquida
-                        AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+            RecLock("TRB2",.F.)
+                If !Empty(TRB2->TMP_OK)
+                    If TRB2->TMP_LIQUID == "S"
+                        lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao)
+                        If !lLiquida
+                            AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+                        Else
+                            TRB2->TMP_LIQUID := "N"
+                        EndIf
+                    EndIf
+                    If TRB2->TMP_BAIXA == "S"
+                        lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcao)
+                        If !lBaixado
+                            AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+                        Else
+                            TRB2->TMP_BAIXA := "N"
+                        EndIf
                     EndIf
                 EndIf
-                If TRB2->TMP_BAIXA == "S"
-                    lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,cMsg,nOpcao)
-                    If !lBaixado
-                        AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+                If lLiquida .AND. !lBaixado
+                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Liquidação de título excluída." } )
+                    If TRB2->TMP_STATUS == "D"
+                        TRB2->TMP_STATUS := "B"
+                    ElseIf TRB2->TMP_STATUS == "C"
+                        TRB2->TMP_STATUS := "A"
+                    EndIf
+                    nPosArr := 0
+                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                    If nPosArr > 0
+                        aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
+                        aNaoRes[nPosArr,13] := "S"
+                    EndIf
+                ElseIf !lLiquida .AND. lBaixado
+                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Baixa de título excluída." } )
+                    If TRB2->TMP_STATUS == "D"
+                        TRB2->TMP_STATUS := "C"
+                    ElseIf TRB2->TMP_STATUS == "B"
+                        TRB2->TMP_STATUS := "A"
+                    EndIf
+                    nPosArr := 0
+                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                    If nPosArr > 0
+                        aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
+                        aNaoRes[nPosArr,12] := "S"
+                    EndIf
+                ElseIf lLiquida .AND. lBaixado
+                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Baixa e liquidação de título excluída." } )
+                    TRB2->TMP_STATUS := "A"
+                    nPosArr := 0
+                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                    If nPosArr > 0
+                        aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
+                        aNaoRes[nPosArr,12] := "S"
+                        aNaoRes[nPosArr,13] := "S"
                     EndIf
                 EndIf
-            EndIf
-        If lLiquida .AND. !lBaixado
-            AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOC(TRB2->TMP_DTPGT),"Liquidação de título excluída." } )
-        ElseIf !lLiquida .AND. lBaixado
-            AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOC(TRB2->TMP_DTPGT),"Baixa de título excluída." } )
-        ElseIf lLiquida .AND. lBaixado
-            AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOC(TRB2->TMP_DTPGT),"Baixa e liquidação de título excluída." } )
-        EndIf
-        lLiquida := .F.
-        lBaixado := .F.
-        TRB2->(dbSkip())
+                lLiquida := .F.
+                lBaixado := .F.
+            MsUnlock()
+            TRB2->(dbSkip())
         End Transaction
     EndDo
 
@@ -1259,6 +1297,8 @@ User Function M0603W(cPrefixo,cNumero,cParcela,cCliente,cLoja,dData)
     cQuery += "AND E5_PARCELA = '" + Alltrim(cParcela) + "' "
     cQuery += "AND E5_CLIFOR = '" + Alltrim(cCliente) + "' "
     cQuery += "AND E5_LOJA = '" + Alltrim(cLoja) + "' "
+    cQuery += "AND E5_MOTBX = 'NOR' "
+    cQuery += "ORDER BY R_E_C_N_O_"
 
     MPSysOpenQuery( cQuery, cAlias )
 
@@ -1266,8 +1306,10 @@ User Function M0603W(cPrefixo,cNumero,cParcela,cCliente,cLoja,dData)
     (cAlias)->(dbGoTop())
     
     While !((cAlias)->(Eof()))
-        If (cAlias)->E5_MOTBX == "NOR"
+        If (cAlias)->E5_TIPODOC != "ES"
             lRet := .T.
+        ElseIf (cAlias)->E5_TIPODOC == "ES"
+            lRet := .F.
         EndIf
         (cAlias)->(dbSkip())
     EndDo

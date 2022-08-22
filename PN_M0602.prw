@@ -12,6 +12,9 @@
     /*/
 User Function M0602()
     Local cCadastro     := "Processamento de conciliações da Koncili"
+    Local nOpc          := 0
+    Local cAvisoTit     := "Processamento de títulos Koncili"
+    Local cAvisoMsg     := "Confirma a data base do sistema para execução do processamento dos títulos ?"
     Private lRpc	    := Type("cFilAnt") == "U"
     Private aCpoInfo    := {}
     Private aCampos     := {}
@@ -19,6 +22,7 @@ User Function M0602()
     Private oTable      := Nil
     Private oMarkBrow   := Nil
     Private aRotina     := MenuDef()
+    Private aNaoRes     := {}
 
     If lRpc
 		RPCSetType(3)
@@ -32,14 +36,18 @@ User Function M0602()
 
     SetKey (VK_F12,{|a,b| AcessaPerg("M0602",.T.)})
 
-    pergunte("M0602",.F.)
+    nOpc := Aviso( cAvisoTit, cAvisoMsg, { "Sim", "Não"} , 2)
+    If nOpc == 2
+        Return
+    EndIf
+
+    Pergunte("M0602",.T.)
 
     FwMsgRun(,{ || U_M0602A() }, cCadastro, 'Carregando dados...')
 
 	oBrowse := FWmBrowse():New()
 	oBrowse:SetAlias('TRB')
 	oBrowse:SetDescription( cCadastro )
-	//oBrowse:SetSeek(.T.,aSeek)
 	oBrowse:SetTemporary(.T.)
 	oBrowse:SetLocate()
 	oBrowse:SetUseFilter(.T.)
@@ -67,8 +75,8 @@ Return
 Static Function MenuDef
     Local aRot := {}
 
-    ADD Option aRot Title 'Processar'               Action 'U_M0603(Alltrim(TRB->TMP_COD),Alltrim(TRB->TMP_CANAL))' Operation 0 Access 0
-    ADD Option aRot Title 'Recarregar Conciliações' Action 'FwMsgRun(,{ || U_M0602F() }, Recarregando concilições de títulos da Koncili", "Carregando dados...")'   Operation 0 Access 0
+    ADD Option aRot Title 'Processar títulos'       Action 'U_M0603(Alltrim(TRB->TMP_COD),Alltrim(TRB->TMP_CANAL))' Operation 0 Access 0
+    ADD Option aRot Title 'Recarregar Conciliações' Action 'U_M0602F()'   Operation 0 Access 0
     ADD Option aRot Title 'Atualizar Repasses'      Action 'U_M0604(Alltrim(TRB->TMP_COD),Alltrim(TRB->TMP_CANAL))' Operation 0 Access 0
     
 
@@ -189,11 +197,13 @@ User Function M0602B()
     Local lBaixado  := .F.
     Local lLiquida  := .F.
 
+    aNaoRes := {}
+
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
         U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal)
 
         For nY := 1 to nVezes
-            cUrl  := "https://api-sandbox.koncili.com"
+            cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
             cPath := "/externalapi/orderextract/unresolveds?offset="+ Alltrim(Str(nOffSet)) + "&initDate=" + dDtIni + "&endDate=" + dDtFim
             cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -219,11 +229,13 @@ User Function M0602B()
                         cDtIni  := StrTran(SubStr(oJson['content'][nX]['conciliationInitDate'],1,10),"-","")
                         cDtFim  := StrTran(SubStr(oJson['content'][nX]['conciliationEndDate'],1,10),"-","")
                         cMarket := oJson['content'][nX]['channel']
-                        cConta  := Strtran(NoAcento(DecodeUTF8(oJson['content'][nX]['accountName'])),"Ã?","A")
+                        If !Empty(Alltrim(oJson['content'][nX]['accountName']))
+                            cConta  := Strtran(NoAcento(DecodeUTF8(oJson['content'][nX]['accountName'])),"Ã?","A")
+                        EndIf
                         cTipo   := oJson['content'][nX]['extractType']
                         nValAr  := oJson['content'][nX]['releasedValue']
-                        cData   := StrTran(SubStr(oJson['content'][nX]['releasedDate'],1,10),"-","")
-                        aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida)
+                        cData   := StrTran(SubStr(oJson['content'][nX]['conciliationEndDate'],1,10),"-","")
+                        aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida,cData)
                         cStatus := U_M0602E(lBaixado,lLiquida)
                         nPosField := 0
                         nPosField := aScan( aBaixa, {|x| AllTrim(x[1]) == Alltrim(cConcId) } )
@@ -234,6 +246,13 @@ User Function M0602B()
                                 aBaixa[nPosField,9] += nValAr
                                 If (aBaixa[nPosField,7] != cStatus)
                                     aBaixa[nPosField,7] := "B"
+                                EndIf
+                            EndIf
+                            If Len(aTitulo) > 0
+                                nPosField2 := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(cOrder) } )
+                                If nPosField2 == 0
+                                    cStatus := U_M0603M(lBaixado,lLiquida)
+                                    AADD( aNaoRes, { aTitulo[1,1],aTitulo[1,2],aTitulo[1,3],aTitulo[1,4],aTitulo[1,5],0,0,0,cData,cOrder,cStatus, Iif(lBaixado,"S","N"), Iif(lLiquida,"S","N"),cMarket,cConcId } )
                                 EndIf
                             EndIf
                         EndIf
@@ -265,7 +284,7 @@ User Function M0602C(nLimit,nOffSet,nCount,nVezes,cCod,cCanal)
     Local dDtFim    := Substr(DTOS(MV_PAR02),1,4) + "-" + Substr(DTOS(MV_PAR02),5,2) + "-" + Substr(DTOS(MV_PAR02),7,2)
     
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
-        cUrl  := "https://api-sandbox.koncili.com"
+        cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
         cPath := "/externalapi/orderextract/unresolveds?initDate=" + dDtIni + "&endDate=" + dDtFim
         If !Empty(Alltrim(cCod))
             cPath += "&conciliationId=" + Alltrim(cCod) + "&channelName=" + Alltrim(cCanal)
@@ -301,7 +320,7 @@ User Function M0602C(nLimit,nOffSet,nCount,nVezes,cCod,cCanal)
 
 Return
 
-User Function M0602D(cWareId,lBaixado,lLiquida)
+User Function M0602D(cWareId,lBaixado,lLiquida,cData)
     Local cAlias := GetNextAlias()
     Local cQuery
     Local aRet   := {}
@@ -318,9 +337,9 @@ User Function M0602D(cWareId,lBaixado,lLiquida)
     (cAlias)->(dbGoTop())
     
     If !Empty((cAlias)->E1_IDWARE)
-        AADD( aRet, { (cAlias)->E1_CLIENTE, (cAlias)->E1_LOJA, (cAlias)->E1_NOMCLI, (cAlias)->E1_NUM } )
-        lBaixado := U_M0603K(cWareId,MV_PAR03)
-        lLiquida := U_M0603L((cAlias)->E1_CLIENTE,(cAlias)->E1_LOJA,(cAlias)->E1_NUM)
+        AADD( aRet, { (cAlias)->E1_CLIENTE, (cAlias)->E1_LOJA, (cAlias)->E1_NOMCLI, (cAlias)->E1_NUM, (cAlias)->E1_VALOR } )
+        lBaixado := U_M0603K(cWareId,STOD(cData))
+        lLiquida := U_M0603L((cAlias)->E1_CLIENTE,(cAlias)->E1_LOJA,(cAlias)->E1_NUM,STOD(cData))
     EndIf
     
     (cAlias)->(dbCloseArea())
@@ -387,7 +406,7 @@ User Function M0602H(aBaixa)
         U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal)
 
         For nY := 1 to nVezes
-            cUrl  := "https://api-sandbox.koncili.com"
+            cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
             cPath := "/externalapi/orderextract/concilieds?offset="+ Alltrim(Str(nOffSet)) + "&initDate=" + dDtIni + "&endDate=" + dDtFim
             cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -413,11 +432,15 @@ User Function M0602H(aBaixa)
                         cDtIni  := StrTran(SubStr(oJson['content'][nX]['conciliationInitDate'],1,10),"-","")
                         cDtFim  := StrTran(SubStr(oJson['content'][nX]['conciliationEndDate'],1,10),"-","")
                         cMarket := oJson['content'][nX]['channel']
-                        cConta  := Strtran(NoAcento(DecodeUTF8(oJson['content'][nX]['accountName'])),"Ã?","A")
+                        If !Empty(Alltrim(oJson['content'][nX]['accountName']))
+                            cConta  := Strtran(NoAcento(DecodeUTF8(oJson['content'][nX]['accountName'])),"Ã?","A")
+                        Else
+                            cConta  := ""
+                        EndIf
                         cTipo   := oJson['content'][nX]['extractType']
                         nValRe  := oJson['content'][nX]['releasedValue']
                         cData   := StrTran(SubStr(oJson['content'][nX]['releasedDate'],1,10),"-","")
-                        aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida)
+                        aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida,cData)
                         cStatus := U_M0602E(lBaixado,lLiquida)
                         nPosField := 0
                         nPosField := aScan( aBaixa, {|x| AllTrim(x[1]) == Alltrim(cConcId) } )
