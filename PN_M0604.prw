@@ -16,11 +16,12 @@ User Function M0604(cCod,cCanal)
     Private aCampos     := {}
     Private aCpoData    := {}
     Private oTable      := Nil
-    Private oMarkBrow   := Nil
+    Private oMarkBrw4   := Nil
     Private aRotina     := MenuDef()
     Private aMovBan     := {}
     Private dDtIni
     Private dDtFim
+    Private aCarrega    := {}
 
     Pergunte("M0602",.T.)
 
@@ -29,22 +30,22 @@ User Function M0604(cCod,cCanal)
 
     FwMsgRun(,{ || U_M0604A(cCod,cCanal) }, "Processamento de títulos da Koncili", 'Carregando dados...')
 
-    oMarkBrow := FwMarkBrowse():New()
-    oMarkBrow:SetAlias('TRB3')
-    oMarkBrow:SetTemporary()
+    oMarkBrw4 := FwMarkBrowse():New()
+    oMarkBrw4:SetAlias('TRB3')
+    oMarkBrw4:SetTemporary()
 
 	//Legenda da grade, é obrigatório carregar antes de montar as colunas
-	oMarkBrow:AddLegend("TMP_STATUS=='A'","GREEN" 	,"Título Aberto")
-	oMarkBrow:AddLegend("TMP_STATUS=='B'","BLUE"  	,"Título Baixado sem liquidação")
-	oMarkBrow:AddLegend("TMP_STATUS=='C'","YELLOW"  ,"Título liquidado sem baixa")
-    oMarkBrow:AddLegend("TMP_STATUS=='D'","RED"  	,"Título Baixado e liquidado")
+	oMarkBrw4:AddLegend("TMP_STATUS=='A'","GREEN" 	,"Título Aberto")
+	oMarkBrw4:AddLegend("TMP_STATUS=='B'","BLUE"  	,"Título Baixado sem liquidação")
+	oMarkBrw4:AddLegend("TMP_STATUS=='C'","YELLOW"  ,"Título liquidado sem baixa")
+    oMarkBrw4:AddLegend("TMP_STATUS=='D'","RED"  	,"Título Baixado e liquidado")
 
-    oMarkBrow:SetColumns(aCampos)
-    oMarkBrow:SetFieldMark('TMP_OK')
-    oMarkBrow:SetMenuDef('M06003')
-    oMarkBrow:SetDescription('Processamento de títulos Koncilli')
-    oMarkBrow:SetAllMark( { || U_M0604J(oMarkBrow:Mark(),lMarcar := !lMarcar ), oMarkBrow:Refresh(.T.)  } )
-    oMarkBrow:Activate()
+    oMarkBrw4:SetColumns(aCampos)
+    oMarkBrw4:SetFieldMark('TMP_OK')
+    oMarkBrw4:SetMenuDef('M06003')
+    oMarkBrw4:SetDescription('Processamento de títulos Koncilli')
+    oMarkBrw4:SetAllMark( { || U_M0604J(oMarkBrw4:Mark(),lMarcar := !lMarcar ), oMarkBrw4:Refresh(.T.)  } )
+    oMarkBrw4:Activate()
     
     If(Type('oTable') <> 'U')
         oTable:Delete()
@@ -57,8 +58,9 @@ Return
 
 User Function M0604A(cCod,cCanal)
     Local nI, nX
-    Local aCarrega := {}
-
+    
+    aCarrega := {}
+    
     If(Type('oTable') <> 'U')
         oTable:Delete()
         oTable := Nil
@@ -124,7 +126,7 @@ User Function M0604A(cCod,cCanal)
 
     oTable:Create()
 
-    aCarrega = U_M0603B(cCod,cCanal,dDtIni,dDtFim)
+    aCarrega = U_M0604B(cCod,cCanal)
 
     If Len(aCarrega) > 0
 
@@ -163,30 +165,54 @@ Return
 Static Function MenuDef()
     Local aRot := {}
 
-    ADD Option aRot Title 'Resolver'  Action 'FwMsgRun(,{ || U_M0604B(), CloseBrowse() }, "Enviando resolução dos títulos selecionados para Koncili", "Aguarda...")' Operation 1 Access 0
+    ADD Option aRot Title 'Resolver'  Action 'FwMsgRun(,{ || U_M0604C(TRB3->TMP_CANAL,TRB3->TMP_CODMAR), CloseBrowse() }, "Enviando resolução dos títulos selecionados para Koncili", "Aguarda...")' Operation 1 Access 0
     ADD Option aRot Title 'Visualizar' Action 'FwMsgRun(,{ || U_M0603N(TRB3->TMP_CANAL,TRB3->TMP_CODMAR) }, "Processando dos títulos selecionados", "Aguarda...")' Operation 2 Access 0
 
 Return(aRot)
 
-User Function M0604B()
-    Local cCod
-    Local cCanal
+User Function M0604B(cCod,cCanal)
+    Local nX, nZ
+    Local aTitulos    := {}
+    Local nValPag   := 0.00
+    Local nValLiq   := 0.00
+    Local nValJur   := 0.00
+
+    aMovBan := {}
+
+    If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
+        For nZ := 1 To Len(aNaoRes)
+            if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod) .AND. aNaoRes[nZ,16]
+                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14]})
+                nX := Len(aTitulos)
+                nValPag := 0.00
+                nValLiq := 0.00
+                nValJur := 0.00
+                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur)
+                aTitulos[nX,6] += nValPag
+                aTitulos[nX,7] += nValLiq
+                aTitulos[nX,8] += nValJur
+            EndIf
+        Next nZ
+    EndIf
+
+Return(aTitulos)
+
+User Function M0604C(cCanal,cCod)
     Local aItens := {}
-    Local nX, nY, nZ
+    Local aAux   := {}
+    Local nX, nY, nZ, nW
     Local cIds   := ""
     Local nTotal := 0
     Local nLimit := 100
     Local nVezes := 0
-    Local cRecno := ""
+    Local nRecno := 0
+    Local nPosMkt 
 
     TRB3->(dbGoTop())
 
-    cCod    := Alltrim(TRB3->TMP_IDCONC)
-    cCanal  := Alltrim(TRB3->TMP_CANAL)
-
     While !TRB3->(Eof())
         If !Empty(TRB3->TMP_OK)
-            U_M0604C(cCanal,Alltrim(TRB3->TMP_CODMAR),@aItens)
+            U_M0604D(cCanal,Alltrim(TRB3->TMP_CODMAR),@aItens)
         EndIf
         TRB3->(dbSkip())
     EndDo
@@ -199,29 +225,63 @@ User Function M0604B()
             cIds += Alltrim(Str(aItens[nX,1])) + Iif(nTotal != nX .AND. nX != nLimit,",","")
             If nTotal == nX .OR. nX == nLimit
                 cIds := "[" + cIds + "]"
-                U_M0604D(cIds)
+                U_M0604E(cIds)
                 cIds := ""
             EndIf
         Next nX
     Next nY
 
     If Len(aItens) > 0
-        For nZ := 1 to Len(aItens)
-            cRecno := ""
-            cRecno := U_M0604E(Alltrim(aItens[nZ,2]))
-            If !Empty(Alltrim(cRecno))
+        For nW := 1 to Len(aItens)
+            nPosMkt := 0
+            nPosMkt := aScan( aAux, {|x| AllTrim(x[1]) == Alltrim(aItens[nW,2]) } )
+            If nPosMkt == 0
+                AADD(aAux, {aItens[nW,2]} )
+            EndIf
+        Next nW
+    EndIf    
+    
+    If Len(aAux) > 0
+        For nZ := 1 to Len(aAux)
+            nRecno := 0
+            nRecno := U_M0604F(Alltrim(aAux[nZ,1]))
+            If nRecno > 0
                 DbSelectArea("SE1")
-                SE1->(dbGoTo(cRecno))
+                SE1->(dbGoTo(nRecno))
                 RecLock("SE1",.F.)
                     SE1->E1_RESOLKO := "S"
                 SE1->(MsUnlock())
+                nPosMkt := 0
+                nPosMkt := aScan( aCarrega, {|x| AllTrim(x[10]) == Alltrim(aAux[nZ,1]) } )
+                If nPosMkt > 0
+                    dbSelectArea("ZZC")
+                    ZZC->(DbSetOrder(1))
+                    RecLock("ZZC",.T.)
+                        ZZC->ZZC_FILIAL := "02"
+                        ZZC->ZZC_MARKET := cCanal
+                        ZZC->ZZC_IDCONC := cCod
+                        ZZC->ZZC_CLIENT := aCarrega[nPosMkt,1]
+                        ZZC->ZZC_LOJA   := aCarrega[nPosMkt,2]
+                        ZZC->ZZC_NOMCLI := aCarrega[nPosMkt,3]
+                        ZZC->ZZC_TITULO := aCarrega[nPosMkt,4]
+                        ZZC->ZZC_VALOR  := aCarrega[nPosMkt,5]
+                        ZZC->ZZC_VALPAG := aCarrega[nPosMkt,6]
+                        ZZC->ZZC_VALCOM := aCarrega[nPosMkt,7]
+                        ZZC->ZZC_JUROS  := aCarrega[nPosMkt,8]
+                        ZZC->ZZC_DTPAGT := STOD(aCarrega[nPosMkt,9])
+                        ZZC->ZZC_CODMKT := aCarrega[nPosMkt,10]
+                    ZZC->(MsUnlock())
+                EndIf
             EndIf
         Next nZ
     EndIf
 
+    // Atualiza telas
+    U_M0604G(aAux)
+
 Return
 
-User Function M0604C(cCanal,cOrder,aItens)
+User Function M0604D(cCanal,cOrder,aItens)
     Local cUrl
     Local cPath
     Local cAuth
@@ -261,7 +321,7 @@ User Function M0604C(cCanal,cOrder,aItens)
 
 Return
 
-User Function M0604D(cIds)
+User Function M0604E(cIds)
     Local cUrl
     Local cPath
     Local cAuth
@@ -287,10 +347,10 @@ User Function M0604D(cIds)
 
 Return
 
-User Function M0604E(cOrder)
+User Function M0604F(cOrder)
     Local cAlias   := GetNextAlias()
     Local cQuery
-    Local cRecno   := ""
+    Local nRecno   := 0
 
     cQuery := "SELECT R_E_C_N_O_ AS RECNO "
     cQuery += "FROM " + RetSqlName("SE1") + " "
@@ -304,10 +364,40 @@ User Function M0604E(cOrder)
     DBSelectArea(cAlias)
     (cAlias)->(dbGoTop())
     
-    If !Empty(Alltrim((cAlias)->RECNO))
-        cRecno := (cAlias)->RECNO
+    If (cAlias)->RECNO > 0
+        nRecno := (cAlias)->RECNO
     EndIf
     
     (cAlias)->(dbCloseArea())    
 
-Return(aCarrega)
+Return(nRecno)
+
+User Function M0604G(aAux)
+    Local nX, nY
+    Local nPosField
+    Local nPosCarr
+    Local nValor
+
+    For nX := 1 to Len(aAux)
+        For nY := 1 To Len(aNaoRes)
+            If Alltrim(aNaoRes[nY,10]) == Alltrim(aAux[nX,1])
+                nValor := 0
+                aNaoRes[nY,16] := .F.
+                nPosCarr := 0
+                nPosCarr := aScan( aCarrega, {|x| AllTrim(x[10]) == Alltrim(aAux[nX,1]) } )
+                If nPosCarr > 0
+                    nValor += aCarrega[nPosCarr,6]
+                EndIf
+                nPosField := 0
+                nPosField := aScan( aBaixa, {|x| AllTrim(x[1]) == Alltrim(aNaoRes[nY,15]) } )
+                If nPosField > 0
+                    aBaixa[nPosField,8] += nValor
+                    aBaixa[nPosField,9] -= nValor
+                    TRB->TMP_TOTRE += nValor
+                    TRB->TMP_TOTAR -= nValor
+                EndIf
+            EndIf
+        Next nY
+    Next nX
+
+Return

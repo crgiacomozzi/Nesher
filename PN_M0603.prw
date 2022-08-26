@@ -16,7 +16,7 @@ User Function M0603(cCod,cCanal)
     Private aCampos     := {}
     Private aCpoData    := {}
     Private oTable      := Nil
-    Private oMarkBrow   := Nil
+    Private oMarkBrw3   := Nil
     Private aRotina     := MenuDef()
     Private aMovBan     := {}
     Private dDtIni      
@@ -31,22 +31,22 @@ User Function M0603(cCod,cCanal)
     
     FwMsgRun(,{ || U_M0603A(cCod,cCanal,dDtIni,dDtFim) }, "Processamento de títulos da Koncili", 'Carregando dados...')
 
-    oMarkBrow := FwMarkBrowse():New()
-    oMarkBrow:SetAlias('TRB2')
-    oMarkBrow:SetTemporary()
+    oMarkBrw3 := FwMarkBrowse():New()
+    oMarkBrw3:SetAlias('TRB2')
+    oMarkBrw3:SetTemporary()
 
 	//Legenda da grade, é obrigatório carregar antes de montar as colunas
-	oMarkBrow:AddLegend("TMP_STATUS=='A'","GREEN" 	,"Título Aberto")
-	oMarkBrow:AddLegend("TMP_STATUS=='B'","BLUE"  	,"Título Baixado sem liquidação")
-	oMarkBrow:AddLegend("TMP_STATUS=='C'","YELLOW"  ,"Título liquidado sem baixa")
-    oMarkBrow:AddLegend("TMP_STATUS=='D'","RED"  	,"Título Baixado e liquidado")
+	oMarkBrw3:AddLegend("TMP_STATUS=='A'","GREEN" 	,"Título Aberto")
+	oMarkBrw3:AddLegend("TMP_STATUS=='B'","BLUE"  	,"Título Baixado sem liquidação")
+	oMarkBrw3:AddLegend("TMP_STATUS=='C'","YELLOW"  ,"Título liquidado sem baixa")
+    oMarkBrw3:AddLegend("TMP_STATUS=='D'","RED"  	,"Título Baixado e liquidado")
 
-    oMarkBrow:SetColumns(aCampos)
-    oMarkBrow:SetFieldMark('TMP_OK')
-    oMarkBrow:SetMenuDef('M06003')
-    oMarkBrow:SetDescription('Processamento de títulos Koncilli')
-    oMarkBrow:SetAllMark( { || U_M0603J(oMarkBrow:Mark(),lMarcar := !lMarcar ), oMarkBrow:Refresh(.T.)  } )
-    oMarkBrow:Activate()
+    oMarkBrw3:SetColumns(aCampos)
+    oMarkBrw3:SetFieldMark('TMP_OK')
+    oMarkBrw3:SetMenuDef('M0603')
+    oMarkBrw3:SetDescription('Processamento de títulos Koncilli')
+    oMarkBrw3:SetAllMark( { || U_M0603J(oMarkBrw3:Mark(),lMarcar := !lMarcar ), oMarkBrw3:Refresh(.T.)  } )
+    oMarkBrw3:Activate()
     
     If(Type('oTable') <> 'U')
         oTable:Delete()
@@ -57,6 +57,17 @@ User Function M0603(cCod,cCanal)
 
 Return
 
+/*/{Protheus.doc} M0603A
+    Função responsável pela da tela de processamento dos títulos.
+    @type  Function
+    @author Pono Tecnologia
+    @since 25/05/2022
+    @version 12.1.33
+    @param cCod  , Character, Código do título no marketplace
+    @param cCanal, Character, Marketplace
+    @param dDtIni, Date     , Data inicial para busca dos títulos
+    @param dDtFim, Date     , Data final para busca dos títulos
+    /*/
 User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
     Local nI, nX
     Local aCarrega := {}
@@ -165,15 +176,26 @@ Return
 Static Function MenuDef()
     Local aRot := {}
 
-    ADD Option aRot Title 'Processar'    Action 'FwMsgRun(,{ || U_M0603G(), CloseBrowse() }, "Processando dos títulos selecionados", "Aguarde...")' Operation 1 Access 0
+    ADD Option aRot Title 'Processar'    Action 'FwMsgRun(,{ || U_M0603G() }, "Processando dos títulos selecionados", "Aguarde...")' Operation 6 Access 0
     ADD Option aRot Title 'Visualizar'   Action 'FwMsgRun(,{ || U_M0603N(TRB2->TMP_CANAL,TRB2->TMP_CODMAR) }, "Processando dos títulos selecionados", "Aguarde...")' Operation 2 Access 0
-    ADD Option aRot Title 'Cancelamento' Action 'FwMsgRun(,{ || U_M0603X(), CloseBrowse() }, "Processando cancelamento e liquidação dos títulos selecionados", "Aguarde...")' Operation 1 Access 0
+    ADD Option aRot Title 'Cancelamento' Action 'FwMsgRun(,{ || U_M0603X() }, "Processando cancelamento e liquidação dos títulos selecionados", "Aguarde...")' Operation 7 Access 0
 
 Return(aRot)
 
+/*/{Protheus.doc} M0603B
+    Função responsável por carregar os dados que serão exibidos na tela de processamento
+    @type  Function
+    @author Pono Tecnologia
+    @since 25/05/2022
+    @version 12.1.33
+    @param cCod  , Character, Código do título no marketplace
+    @param cCanal, Character, Marketplace
+    @param dDtIni, Date     , Data inicial para busca dos títulos
+    @param dDtFim, Date     , Data final para busca dos títulos
+    /*/
 User Function M0603B(cCod,cCanal,dDtIni,dDtFim)
-    Local nX, nZ
-    Local aBaixa    := {}
+    Local nX, nZ, nY
+    Local aTitulos    := {}
     Local nValPag   := 0.00
     Local nValLiq   := 0.00
     Local nValJur   := 0.00
@@ -183,20 +205,30 @@ User Function M0603B(cCod,cCanal,dDtIni,dDtFim)
     If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
         For nZ := 1 To Len(aNaoRes)
             if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod)
-                AADD(aBaixa, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14]})
-                nX := Len(aBaixa)
+                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14]})
+                nX := Len(aTitulos)
                 nValPag := 0.00
                 nValLiq := 0.00
                 nValJur := 0.00
-                U_M0603D(aBaixa[nX,10],cCanal,@nValPag,@nValLiq,@nValJur)
-                aBaixa[nX,6] += nValPag
-                aBaixa[nX,7] += nValLiq
-                aBaixa[nX,8] += nValJur
+                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur)
+                aTitulos[nX,6] += nValPag
+                aTitulos[nX,7] += nValLiq
+                aTitulos[nX,8] += nValJur
             EndIf
         Next nZ
+
+        If Len(aSemTit) > 0
+            For nY := 1 To Len(aSemTit)
+                If Alltrim(aSemTit[nY,3]) == Alltrim(cCanal) .AND. Alltrim(aSemTit[nY,4]) == Alltrim(cCod)
+                    U_M0603Z(aSemTit[nY,3],cCod,cCanal,Alltrim(Str(aSemTit[nY,5])))
+                EndIf
+            Next nZ
+        EndIf
+
     EndIf
 
-Return(aBaixa)
+
+Return(aTitulos)
 
 User Function M0603C(cWareId)
     Local cAlias := GetNextAlias()
@@ -353,6 +385,13 @@ User Function M0603F(cCanal,cTipo,aOcoPro)
 
 Return
 
+/*/{Protheus.doc} M0603G
+    Função responsável pelo baixa e/ou liquidação dos títulos.
+    @type  Function
+    @author Pono Tecnologia
+    @since 04/07/2022
+    @version 12.1.33
+    /*/
 User Function M0603G()
     Local aArea    := GetArea()
     Local cPrefixo := "1  "
@@ -367,10 +406,11 @@ User Function M0603G()
     Local aImprime := {}
     Local aErros   := {}
     Local cMsg
-    Local nX
+    Local nX, nY
     Local nOpcao   := 3
     Local cStatus
     Local nPosArr
+    Local aAux    := {}
 
     TRB2->(dbGoTop())
 
@@ -387,15 +427,19 @@ User Function M0603G()
             RecLock("TRB2", .F.)
                 If !Empty(TRB2->TMP_OK)
                     If TRB2->TMP_LIQUID == "N" .AND. TRB2->TMP_VALCOM > 0
-                        lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao)
+                        lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao,@aAux,cCanal)
                         If !lLiquida
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+                        Else
+                            TRB2->TMP_LIQUID := "S"
                         EndIf
                     EndIf
                     If TRB2->TMP_BAIXA == "N" .AND. TRB2->TMP_VALPAG > 0
                         lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcao)
                         If !lBaixado
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
+                        Else
+                            TRB2->TMP_BAIXA := "S"
                         EndIf
                     EndIf
                 EndIf
@@ -408,6 +452,7 @@ User Function M0603G()
                     nPosArr := 0
                     nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
                     If nPosArr > 0
+                        TRB2->TMP_STATUS := cStatus
                         aNaoRes[nPosArr,11] := cStatus
                         aNaoRes[nPosArr,13] := "S"
                     EndIf
@@ -421,15 +466,17 @@ User Function M0603G()
                     nPosArr := 0
                     nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
                     If nPosArr > 0
+                        TRB2->TMP_STATUS := cStatus
                         aNaoRes[nPosArr,11] := cStatus
                         aNaoRes[nPosArr,12] := "S"
                     EndIf
                     AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Baixado" } )
                 ElseIf lLiquida .AND. lBaixado
+                    TRB2->TMP_STATUS := "D"
                     nPosArr := 0
                     nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
                     If nPosArr > 0
-                        aNaoRes[nPosArr,11] := "D"
+                        aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
                         aNaoRes[nPosArr,12] := "S"
                         aNaoRes[nPosArr,13] := "S"
                     EndIf
@@ -437,30 +484,62 @@ User Function M0603G()
                 EndIf
                 lLiquida := .F.
                 lBaixado := .F.
-            MsUnlock()
+            MsUnLock()
             TRB2->(dbSkip())
         End Transaction
     EndDo
+
+    If Len(aAux) > 0
+    	For nY := 1 To Len(aAux)
+            dbSelectArea("SE1")
+            SE1->(dbSetOrder(1))
+            If (SE1->(dbSeek("02"+aAux[nY,1]+aAux[nY,2]+aAux[nY,3]+aAux[nY,4])))
+                RecLock("SE1",.F.)
+                    SE1->E1_YPEDPRE := Alltrim(aAux[nY,7])
+                    SE1->E1_IDWARE  := Alltrim(aAux[nY,8])
+                    SE1->E1_CODMKT  := Alltrim(aAux[nY,9])
+                MsUnLock()
+            EndIf
+            SE1->(dbCloseArea())
+        Next nY
+    EndIf
 
     If Len(aMovBan) > 0
         For nX := 1 To Len(aMovBan)
             Begin Transaction
                 lMovime := U_M0603V(aMovBan[nX],cMsg)
-                    If !lMovimen
+                    If !lMovime
                         AADD( aErros, { DTOC(ddatabase),aMovBan[nY,6],cMsg } )
                     EndIf
             End Transaction
         Next nX
     EndIf
 
+    // Imprime log do processamento.
     If Len(aImprime) > 0
         U_M0603T(aImprime)
     EndIf
 
+    // Imprime log de erro do processamento.
     If Len(aErros)
         U_M0603U(aErros)
     EndIf
 
+    // Refaz legenda do browse principal
+    U_M0603Y(cCanal,cCod)
+
+    TRB2->(dbGoTop())
+
+    // Limpa marcações
+    While !TRB2->(Eof())
+        RecLock("TRB2",.F.)
+            TRB2->TMP_OK := " "
+        MsUnlock()
+        TRB2->(dbSkip())
+    EndDo
+
+    TRB2->(dbGoTop())
+    
     RestArea(aArea)
 
 Return
@@ -483,7 +562,7 @@ Return
     @param cMsg     , Character, mensagem de resultado do processamento do MSExecAuto
     @return Logical, retorna resultado do MSExcAuto de liquidação.
     /*/
-User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,cTipLiq,cCodMkp,cMsg,nOpcao)
+User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,cTipLiq,cCodMkp,cMsg,nOpcao,aAux,cCanal)
     Local aArea             := GetArea()
     Local aCab              := {}
     Local aTit              := {}
@@ -497,6 +576,7 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
     Local nI
     Local aErro             := {}
     Local cCanLiq           := ""
+    Local cCodCan           := ""
     Private lMsErroAuto     := .F.
     Private lAutoErrNoFile  := .T. 
 
@@ -542,7 +622,6 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
         msExecAuto( { |a,b,c,d,e| FINA460(a,b,c,d,e) }, Nil, aCab, aItens, nOpcao, cFiltro )
         If lMsErroAuto
             lRet := .F.
-            MostraErro()
             cMsg := "Título : " + cNumLiq + CRLF
             cMsg += "Cod. Marketplace : " + cCodMkp + CRLF
             aErro := GetAutoGRLog()
@@ -551,17 +630,15 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
             Next nI
         Else
             dbSelectArea("SE1")
-            SE1->(dbSetOrder(1))
-            If (SE1->(dbSeek("02"+cPreLiq+Alltrim(cNumLiq)+"L"+cTipLiq)))
-                cCodPed := SE1->E1_YPEDPRE
-                dbSelectArea("SE5")
-                SE5->(dbSetOrder(7))
-                If (SE5->(dbSeek("02"+cPreLiq+Alltrim(cNumLiq)+"L"+cTipLiq+cCliLiq+cLojLiq)))
-                    RecLock("SE5",.F.)
-                    SE5->E5_YIDPREC := Alltrim(cCodPed)
-                    SE5->(MsUnlock())
-                EndIf
-                SE5->(dbCloseArea())
+            SE1->(dbSetOrder(29))
+            If (SE1->(dbSeek("02"+cCodMkp)))
+                dbSelectArea("ZZA")
+                ZZA->(dbSetOrder(1))
+                If ZZA->(dbSeek(xFilial("ZZA")+cCanal))
+                    cCodCan := ZZA->ZZA_CODMKT
+                EndIF
+                ZZA->(dbCloseArea())
+                AADD(aAux, {cPreLiq,Alltrim(TRB2->TMP_TITULO),"L",cTipLiq,TRB2->TMP_CLIENT,TRB2->TMP_LOJA,SE1->E1_YPEDPRE,TRB2->TMP_CODMAR,cCodCan})
             EndIf
             SE1->(dbCloseArea())
         EndIf
@@ -587,7 +664,6 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
             msExecAuto( { |a,b,c,d,e,f| FINA460(a,b,c,d,e,f) }, Nil, Nil, Nil, nOpcao, Nil, cCanLiq )
             If lMsErroAuto
                 lRet := .F.
-                MostraErro()
                 cMsg := "Título : " + cNumLiq + CRLF
                 cMsg += "Cod. Marketplace : " + cCodMkp + CRLF
                 aErro := GetAutoGRLog()
@@ -710,7 +786,6 @@ User Function M0603J(cMarca,lMarcar)
             ElseIf Empty((cAlias)->TMP_OK)
                 (cAlias)->TMP_OK := cMarca
             EndIf
-            //(cAlias)->TMP_OK := Iif( lMarcar, cMarca, " " )
         MsUnlock()
         (cAlias)->( dbSkip() )
     EndDo
@@ -794,20 +869,47 @@ User Function M0603L(cCliente,cLoja,cNumero,dData)
 
 Return(lRet)
 
-User Function M0603M(lBaixado,lLiquida)
-    Local cStatus := ""
+User Function M0603M(nId,aOcoKon)
+    Local cUrl
+    Local cPath
+    Local cAuth
+    Local aHeader   := {}
+    Local oRest
+    Local oJson
+    Local cParser
 
-    If lBaixado .AND. lLiquida
-        cStatus := "D"
-    ElseIf lBaixado .AND. !lLiquida
-        cStatus := "B"
-    ElseIf !lBaixado .AND. lLiquida
-        cStatus := "C"
-    ElseIf !lBaixado .AND. !lLiquida
-        cStatus := "A"
-    EndIf
+    cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
+    cPath := "/externalapi/orderextract/"+ nId
+    cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
-Return(cStatus)
+    Aadd(aHeader,'Accept: application/json')
+    Aadd(aHeader,'Content-Type: application/json')
+    AADD(aHeader, "gumgaToken: " + cAuth)
+
+    oRest := FWRest():new(cUrl)
+    oRest:setPath(cPath)
+    oJson := JsonObject():new()
+
+    If oRest:Get(aHeader)
+        If ValType(oRest:ORESPONSEH) == "O"
+            cJson := oRest:GetResult()
+            cJson := StrTran(cJson,"ï»¿","")
+            cParser  := oJson:FromJson(cJson)
+        EndIf
+        If Empty(cParser)
+            cOrder  := oJson['orderCode']
+            cTipo   := oJson['extractType']
+            nValor  := oJson['releasedValue']
+            If nValor < 0
+                nValor := nValor * (-1)
+            EndIf
+            AADD( aOcoKon, { cTipo,nValor } )
+        EndIf
+    EndIF
+
+    freeObj(oJson)
+
+Return
 
 User Function M0603N(cCanal,cOrder)
     Local lRet      := .T.
@@ -1179,6 +1281,13 @@ User Function M0603V(aMovBan,cMsg)
 
 Return(lMovime)
 
+/*/{Protheus.doc} M0603X
+    Função responsável pelo cancelamento da baixa e/ou liquidação dos títulos.
+    @type  Function
+    @author Pono Tecnologia
+    @since 04/07/2022
+    @version 12.1.33
+    /*/
 User Function M0603X()
     Local aArea    := GetArea()
     Local cPrefixo := "1  "
@@ -1237,7 +1346,7 @@ User Function M0603X()
                     nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
                     If nPosArr > 0
                         aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
-                        aNaoRes[nPosArr,13] := "S"
+                        aNaoRes[nPosArr,13] := "N"
                     EndIf
                 ElseIf !lLiquida .AND. lBaixado
                     AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Baixa de título excluída." } )
@@ -1250,7 +1359,7 @@ User Function M0603X()
                     nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
                     If nPosArr > 0
                         aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
-                        aNaoRes[nPosArr,12] := "S"
+                        aNaoRes[nPosArr,12] := "N"
                     EndIf
                 ElseIf lLiquida .AND. lBaixado
                     AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Baixa e liquidação de título excluída." } )
@@ -1259,8 +1368,8 @@ User Function M0603X()
                     nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
                     If nPosArr > 0
                         aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
-                        aNaoRes[nPosArr,12] := "S"
-                        aNaoRes[nPosArr,13] := "S"
+                        aNaoRes[nPosArr,12] := "N"
+                        aNaoRes[nPosArr,13] := "N"
                     EndIf
                 EndIf
                 lLiquida := .F.
@@ -1270,13 +1379,30 @@ User Function M0603X()
         End Transaction
     EndDo
 
+    // Imprime log da execução da rotina.
     If Len(aImprime) > 0
         U_M0603T(aImprime)
     EndIf
 
+    // Imprime log de erro da execução da rotina.
     If Len(aErros)
         U_M0603U(aErros)
     EndIf
+
+    // Refaz legenda do browse principal
+    U_M0603Y(cCanal,cCod)
+
+    TRB2->(dbGoTop())
+
+    // Limpa marcações
+    While !TRB2->(Eof())
+        RecLock("TRB2",.F.)
+            TRB2->TMP_OK := " "
+        MsUnlock()
+        TRB2->(dbSkip())
+    EndDo
+
+    TRB2->(dbGoTop())
 
     RestArea(aArea)
 
@@ -1317,3 +1443,54 @@ User Function M0603W(cPrefixo,cNumero,cParcela,cCliente,cLoja,dData)
     (cAlias)->(dbCloseArea())
 
 Return(lRet)
+
+User Function M0603Y(cCanal,cCod)
+    Local nZ
+    Local nPosField
+    Local cStatus
+    Local lBaixado
+    Local lLiquida
+    Local lPrimeiro := .T.
+
+        For nZ := 1 To Len(aNaoRes)
+            If Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod)
+                nPosField := 0
+                nPosField := aScan( aBaixa, {|x| AllTrim(x[1]) == Alltrim(aNaoRes[nZ,15]) } )
+                If nPosField > 0
+                    lBaixado := Iif(aNaoRes[nZ,12] == "S",.T.,.F.)
+                    lLiquida := Iif(aNaoRes[nZ,13] == "S",.T.,.F.)
+                    cStatus := U_M0602E(lBaixado,lLiquida)
+                    If lPrimeiro
+                        aBaixa[nPosField,7] := cStatus
+                        TRB->TMP_STATUS := cStatus
+                        lPrimeiro := .F.
+                    ElseIf aBaixa[nPosField,7] != cStatus
+                        aBaixa[nPosField,7] := "B"
+                        TRB->TMP_STATUS := "B"
+                    EndIf
+                EndIf
+            EndIf
+        Next nZ
+
+Return
+
+User Function M0603Z(cOder,cCod,cCanal,nId)
+    Local aOcoKon := {}
+    Local aOcoPro := {}
+    Local nX, nY
+
+    U_M0603M(nId,@aOcoKon)
+
+    If Len(aOcoKon) > 0
+        For nX := 1 To Len(aOcoKon)
+            aOcoPro := {}
+            U_M0603F(cCanal,aOcoKon[nX,1],@aOcoPro)
+            For nY := 1 to Len(aOcoPro)
+                If aOcoPro[nX,1] == "M"
+                    AADD(aMovBan, { aOcoKon[nX,2], aOcoPro[nX,5], aOcoPro[nX,6], aOcoPro[nX,7], aOcoPro[nX,8], cCanal } )
+                EndIf
+            Next nY
+        Next nX
+    EndIf
+
+Return

@@ -3,7 +3,7 @@
 #INCLUDE "TBIConn.ch"
 #INCLUDE "RestFul.ch"
 
-/*/{Protheus.doc} nomeFunction
+/*/{Protheus.doc} M0602
     Função responsável pela baixa de títulos recebidos da API da Koncilli
     @type  Function
     @author Pono Tecnologia
@@ -20,9 +20,11 @@ User Function M0602()
     Private aCampos     := {}
     Private aCpoData    := {}
     Private oTable      := Nil
-    Private oMarkBrow   := Nil
+    Private oBrowse     := Nil
     Private aRotina     := MenuDef()
     Private aNaoRes     := {}
+    Private aBaixa      := {}
+    Private aSemTit     := {}
 
     If lRpc
 		RPCSetType(3)
@@ -183,7 +185,6 @@ User Function M0602B()
     Local nValRe    := 0
     Local nValAr    := 0
     Local nValor
-    Local aBaixa    := {}
     Local dDtIni    := Substr(DTOS(MV_PAR01),1,4) + "-" + Substr(DTOS(MV_PAR01),5,2) + "-" + Substr(DTOS(MV_PAR01),7,2)
     Local dDtFim    := Substr(DTOS(MV_PAR02),1,4) + "-" + Substr(DTOS(MV_PAR02),5,2) + "-" + Substr(DTOS(MV_PAR02),7,2)
     Local nLimit    := 1
@@ -196,7 +197,9 @@ User Function M0602B()
     Local cStatus   := ""
     Local lBaixado  := .F.
     Local lLiquida  := .F.
+    Local nId       := 0
 
+    aBaixa  := {}
     aNaoRes := {}
 
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
@@ -235,6 +238,7 @@ User Function M0602B()
                         cTipo   := oJson['content'][nX]['extractType']
                         nValAr  := oJson['content'][nX]['releasedValue']
                         cData   := StrTran(SubStr(oJson['content'][nX]['conciliationEndDate'],1,10),"-","")
+                        nId     := oJson['content'][nX]['id']
                         aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida,cData)
                         cStatus := U_M0602E(lBaixado,lLiquida)
                         nPosField := 0
@@ -251,9 +255,11 @@ User Function M0602B()
                             If Len(aTitulo) > 0
                                 nPosField2 := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(cOrder) } )
                                 If nPosField2 == 0
-                                    cStatus := U_M0603M(lBaixado,lLiquida)
-                                    AADD( aNaoRes, { aTitulo[1,1],aTitulo[1,2],aTitulo[1,3],aTitulo[1,4],aTitulo[1,5],0,0,0,cData,cOrder,cStatus, Iif(lBaixado,"S","N"), Iif(lLiquida,"S","N"),cMarket,cConcId } )
+                                    cStatus := U_M0602I(lBaixado,lLiquida)
+                                    AADD( aNaoRes, { aTitulo[1,1],aTitulo[1,2],aTitulo[1,3],aTitulo[1,4],aTitulo[1,5],0,0,0,cData,cOrder,cStatus, Iif(lBaixado,"S","N"), Iif(lLiquida,"S","N"),cMarket,cConcId,.T. } )
                                 EndIf
+                            Else 
+                                AADD( aSemTit, { cData,cOrder,cMarket,cConcId,nId } )
                             EndIf
                         EndIf
                     Next nX
@@ -346,6 +352,16 @@ User Function M0602D(cWareId,lBaixado,lLiquida,cData)
 
 Return(aRet)
 
+/*/{Protheus.doc} M0602E
+    Função responsável pela definição do status de cada título.
+    @type  Function
+    @author Pono Tecnologia
+    @since 25/05/2022
+    @version 12.1.33
+    @param lBaixado, Logical, Indica se o título foi baixado
+    @param lLiquida, Logical, Indica se o título foi liquidado
+    @return Character, Retorna variável com indicando o status
+    /*/
 User Function M0602E(lBaixado,lLiquida)
     Local cStatus := ""
 
@@ -363,13 +379,9 @@ Return(cStatus)
 
 User Function M0602F()
 
+    Pergunte("M0602",.T.)
+    
     FwMsgRun(,{ || U_M0602A() }, "Processamento de conciliações da Koncilli", "Carregando dados...")
-
-Return
-
-User Function M0602G()
-
-    msginfo("Processando atualização de repasse Koncili....")
 
 Return
 
@@ -463,3 +475,19 @@ User Function M0602H(aBaixa)
     EndIf
 
 Return(aBaixa)
+
+User Function M0602I(lBaixado,lLiquida)
+    Local cStatus := ""
+
+    If lBaixado .AND. lLiquida
+        cStatus := "D"
+    ElseIf lBaixado .AND. !lLiquida
+        cStatus := "B"
+    ElseIf !lBaixado .AND. lLiquida
+        cStatus := "C"
+    ElseIf !lBaixado .AND. !lLiquida
+        cStatus := "A"
+    EndIf
+
+Return(cStatus)
+

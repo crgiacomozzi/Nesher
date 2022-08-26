@@ -187,19 +187,10 @@ User Function M0605A(cMarket,cFornece,cLojFor)
     DEFINE MSDIALOG oDlg TITLE "Compensação Entre Carteiras" From aSize[7],0 To aSize[6],aSize[5] OF oMainWnd PIXEL
     oDlg:lMaximized := .T.
 
-    /*
-    oPanel := TPanel():New(0,0,'',oDlg,, .T., .T.,, ,20,20,.T.,.T. )
-    oPanel:Align := CONTROL_ALIGN_TOP
-
-    @003, 005 Say "Compensacao Nr." 	FONT oDlg:oFont PIXEL OF oPanel
-    @003, 060 Say cNumComp Picture "@!"	FONT oFnt COLOR CLR_HBLUE PIXEL OF oPanel
-    */
-
     oMark := MsSelect():New("TRB2","TMP_OK","",aCpoBro,@lInverte,@cMarca,{50,oDlg:nLeft,oDlg:nBottom,oDlg:nRight})
     oMark:bMark := {| | U_M0605D(cMarca,lInverte,@nSelecP,@NSelecR,oSelecP,oSelecR)}
     oMark:oBrowse:lhasMark = .t.
     oMark:oBrowse:lCanAllmark := .t.
-    //oMark:bAval	:= {|| U_M0605D(cMarca,lInverte,@nTotalP,@nTotalR,@nSelecP,@nSelecR),oMark:oBrowse:Refresh(.T.) }
                                 
     oMark:oBrowse:bAllMark := { || U_M0605G(cMarca,lInverte,@nSelecP,@NSelecR,oSelecP,oSelecR),oMark:oBrowse:Refresh(.T.)}
     oMark:oBrowse:Align := CONTROL_ALIGN_ALLCLIENT
@@ -222,7 +213,6 @@ User Function M0605A(cMarket,cFornece,cLojFor)
 
     ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg,{|| U_M0605I(dDtIni,dDtFim,nLimite,cFornece,cLojFor),oDlg:End()},{|| oDlg:End()},,aBut450)
     
-
 Return
 
 User Function M0605B(aCampos,dDtIni,dDtFim,cMarket,cFornece,cLojFor,nTotalP,nTotalR)
