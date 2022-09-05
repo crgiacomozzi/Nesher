@@ -98,6 +98,7 @@ User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
     aAdd(aCpoInfo, {'Status'                , '@!' , 1})
     aAdd(aCpoInfo, {'Baixado'               , '@!' , 1})
     aAdd(aCpoInfo, {'Liquidado'             , '@!' , 1})
+    aAdd(aCpoInfo, {'Parcela'               , '@!' , 1})
 
     aAdd(aCpoData, {'TMP_OK'        , 'C' , 01, 0})
     aAdd(aCpoData, {'TMP_CANAL'     , 'C' , 10, 0})
@@ -115,6 +116,7 @@ User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
     aAdd(aCpoData, {'TMP_STATUS'    , 'C' , 01, 0})
     aAdd(aCpoData, {'TMP_BAIXA'     , 'C' , 01, 0})
     aAdd(aCpoData, {'TMP_LIQUID'    , 'C' , 01, 0})
+    aAdd(aCpoData, {'TMP_PARCEL'    , 'C' , 01, 0})
 
     For nI := 1 To Len(aCpoData)
 
@@ -162,6 +164,7 @@ User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
                 TRB2->TMP_STATUS   := aCarrega[nX,11]
                 TRB2->TMP_BAIXA    := aCarrega[nX,12]
                 TRB2->TMP_LIQUID   := aCarrega[nX,13]
+                TRB2->TMP_PARCEL   := aCarrega[nX,15]
 
             TRB2->(MsUnlock())
         
@@ -177,7 +180,7 @@ Static Function MenuDef()
     Local aRot := {}
 
     ADD Option aRot Title 'Processar'    Action 'FwMsgRun(,{ || U_M0603G() }, "Processando dos títulos selecionados", "Aguarde...")' Operation 6 Access 0
-    ADD Option aRot Title 'Visualizar'   Action 'FwMsgRun(,{ || U_M0603N(TRB2->TMP_CANAL,TRB2->TMP_CODMAR) }, "Processando dos títulos selecionados", "Aguarde...")' Operation 2 Access 0
+    ADD Option aRot Title 'Visualizar'   Action 'FwMsgRun(,{ || U_M0603N(TRB2->TMP_CANAL,TRB2->TMP_CODMAR,TRB2->TMP_PARCEL) }, "Processando dos títulos selecionados", "Aguarde...")' Operation 2 Access 0
     ADD Option aRot Title 'Cancelamento' Action 'FwMsgRun(,{ || U_M0603X() }, "Processando cancelamento e liquidação dos títulos selecionados", "Aguarde...")' Operation 7 Access 0
 
 Return(aRot)
@@ -205,12 +208,12 @@ User Function M0603B(cCod,cCanal,dDtIni,dDtFim)
     If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
         For nZ := 1 To Len(aNaoRes)
             if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod)
-                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14]})
+                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14],aNaoRes[nZ,17]})
                 nX := Len(aTitulos)
                 nValPag := 0.00
                 nValLiq := 0.00
                 nValJur := 0.00
-                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur)
+                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur,aTitulos[nX,15])
                 aTitulos[nX,6] += nValPag
                 aTitulos[nX,7] += nValLiq
                 aTitulos[nX,8] += nValJur
@@ -254,12 +257,12 @@ User Function M0603C(cWareId)
 
 Return(aRet)
 
-User Function M0603D(cOrder,cCanal,nValPag,nValLiq,nValJur)
+User Function M0603D(cOrder,cCanal,nValPag,nValLiq,nValJur,cParcela)
     Local aOcoKon := {}
     Local aOcoPro := {}
     Local nX, nY
 
-    U_M0603E(cOrder,cCanal,@aOcoKon)
+    U_M0603E(cOrder,cCanal,@aOcoKon,cParcela)
 
     If Len(aOcoKon) > 0
         For nX := 1 To Len(aOcoKon)
@@ -315,7 +318,7 @@ User Function M0603D(cOrder,cCanal,nValPag,nValLiq,nValJur)
 
 Return
 
-User Function M0603E(cOrder,cCanal,aOcoKon)
+User Function M0603E(cOrder,cCanal,aOcoKon,cParcela)
     Local cUrl
     Local cPath
     Local cAuth
@@ -324,9 +327,12 @@ User Function M0603E(cOrder,cCanal,aOcoKon)
     Local oJson
     Local cParser
     Local nX
+    Local nValor    := 0
+    Local cParApi
+    Local cDtApi
 
     cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
-    cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal)
+    cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal) + "?plotNumber=" + cParcela
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
     Aadd(aHeader,'Accept: application/json')
@@ -348,10 +354,27 @@ User Function M0603E(cOrder,cCanal,aOcoKon)
                 cOrder  := oJson['elements'][nX]['orderCode']
                 cTipo   := oJson['elements'][nX]['extractType']
                 nValor  := oJson['elements'][nX]['releasedValue']
-                If nValor < 0
-                    nValor := nValor * (-1)
+                cParApi := Alltrim(str(oJson['elements'][nX]['plotNumber']))
+                cDtRel  := oJson['elements'][nX]['releasedDate']
+                If ValType(cDtRel) == "C"
+                    cDtApi := StrTran(SubStr(cDtRel,1,10),"-","")
+                Else
+                    cDtApi := ""
                 EndIf
-                AADD( aOcoKon, { cTipo,nValor } )
+                If !Empty(AllTrim(cDtApi))
+                    If cDtApi == DTOS(dDtBaixa)
+                        //If cParApi == cParcela
+                            If ValType(nValor) == "N"
+                                If nValor < 0 
+                                    nValor := nValor * (-1)
+                                EndIf
+                            Else 
+                                nValor := 0
+                            EndIf
+                            AADD( aOcoKon, { cTipo,nValor } )
+                        //EndIf
+                    EndIf
+                EndIf
             Next nX
         EndIf
     EndIF
@@ -427,7 +450,7 @@ User Function M0603G()
             RecLock("TRB2", .F.)
                 If !Empty(TRB2->TMP_OK)
                     If TRB2->TMP_LIQUID == "N" .AND. TRB2->TMP_VALCOM > 0
-                        lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao,@aAux,cCanal)
+                        lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao,@aAux,cCanal,TRB2->TMP_PARCEL)
                         If !lLiquida
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
                         Else
@@ -562,7 +585,7 @@ Return
     @param cMsg     , Character, mensagem de resultado do processamento do MSExecAuto
     @return Logical, retorna resultado do MSExcAuto de liquidação.
     /*/
-User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,cTipLiq,cCodMkp,cMsg,nOpcao,aAux,cCanal)
+User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,cTipLiq,cCodMkp,cMsg,nOpcao,aAux,cCanal,cParcela)
     Local aArea             := GetArea()
     Local aCab              := {}
     Local aTit              := {}
@@ -577,8 +600,11 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
     Local aErro             := {}
     Local cCanLiq           := ""
     Local cCodCan           := ""
+    Local cParLiq
     Private lMsErroAuto     := .F.
     Private lAutoErrNoFile  := .T. 
+
+    U_XGETPAR(cParcela,@cParLiq)
 
     If nOpcao == 3
         dbSelectArea("SA6")
@@ -604,7 +630,7 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
 
         Aadd(aTit, {"E1_PREFIXO"	, cPreLiq			})
         Aadd(aTit, {"E1_NUM" 		, Alltrim(cNumLiq)	})
-        Aadd(aTit, {"E1_PARCELA"    , "L"               })
+        Aadd(aTit, {"E1_PARCELA"    , cParLiq           })
         Aadd(aTit, {"E1_TIPO"		, cTipLiq			})
         Aadd(aTit, {"E1_PORTADO" 	, SA6->A6_COD    	})
         Aadd(aTit, {"E1_AGEDEP" 	, SA6->A6_AGENCIA	})
@@ -638,7 +664,7 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
                     cCodCan := ZZA->ZZA_CODMKT
                 EndIF
                 ZZA->(dbCloseArea())
-                AADD(aAux, {cPreLiq,Alltrim(TRB2->TMP_TITULO),"L",cTipLiq,TRB2->TMP_CLIENT,TRB2->TMP_LOJA,SE1->E1_YPEDPRE,TRB2->TMP_CODMAR,cCodCan})
+                AADD(aAux, {cPreLiq,Alltrim(TRB2->TMP_TITULO),cParLiq,cTipLiq,TRB2->TMP_CLIENT,TRB2->TMP_LOJA,SE1->E1_YPEDPRE,TRB2->TMP_CODMAR,cCodCan})
             EndIf
             SE1->(dbCloseArea())
         EndIf
@@ -649,9 +675,9 @@ User Function M0603H(cCliLiq,cLojLiq,cNumLiq,nValPago,nValLiq,cPrefixo,cPreLiq,c
         dbSelectArea("SE1")
         SE1->(dbGotop())
         SE1->(dbSetOrder(2))
-        If SE1->(dbSeek(xFilial("SE1")+cCliLiq+cLojLiq+cPreLiq+Alltrim(cNumLiq)+"L"+cTipLiq))
+        If SE1->(dbSeek(xFilial("SE1")+cCliLiq+cLojLiq+cPreLiq+Alltrim(cNumLiq)+cParLiq+cTipLiq))
             cCanLiq := SE1->E1_NUMLIQ
-        ElseIf SE1->(dbSeek(xFilial("SE1")+cCliLiq+cLojLiq+"1  "+Alltrim(cNumLiq)+"L"+cTipLiq))
+        ElseIf SE1->(dbSeek(xFilial("SE1")+cCliLiq+cLojLiq+"1  "+Alltrim(cNumLiq)+cParLiq+cTipLiq))
             cCanLiq := SE1->E1_NUMLIQ
         Else
             lRet := .F.
@@ -711,9 +737,9 @@ User Function M0603I(cCliente,cLoja,cPrefixo,cNumero,cParcela,cTipo,nValPago,nJu
     Private lAutoErrNoFile  := .T.
 
     If nOpcao == 3
-        cHist := "BAIXA AUTOMATICA E-COMMERCE " + cCodMkp
-    ElseIf nOpcao == 5
-        cHist := "EXCLUSAO DE BAIXA AUTOMATICA E-COMMERCE " + cCodMkp
+        cHist := "BX AUTOM. E-COMMERCE " + cCodMkp
+    ElseIf nOpcao == 6
+        cHist := "EXCLUSAO BX E-COMMERCE " + cCodMkp
     EndIf
 
     dbSelectArea("SA6")
@@ -900,8 +926,12 @@ User Function M0603M(nId,aOcoKon)
             cOrder  := oJson['orderCode']
             cTipo   := oJson['extractType']
             nValor  := oJson['releasedValue']
-            If nValor < 0
-                nValor := nValor * (-1)
+            If ValType(nValor) == "N"
+                If nValor < 0
+                    nValor := nValor * (-1)
+                EndIf
+            Else
+                nValor := 0
             EndIf
             AADD( aOcoKon, { cTipo,nValor } )
         EndIf
@@ -911,13 +941,13 @@ User Function M0603M(nId,aOcoKon)
 
 Return
 
-User Function M0603N(cCanal,cOrder)
+User Function M0603N(cCanal,cOrder,cParcela)
     Local lRet      := .T.
     Local aFields   := {" ", "Canal" , "Código do título","Tipo          ", "Descrição do Tipo", "Valor", "Situação"}
     Local aButtons  := {}
     Local aItens    := {}
 
-        U_M0603O(cCanal,cOrder,@aItens)
+        U_M0603O(cCanal,cOrder,@aItens,cParcela)
 
         If Len(aItens) > 0
             oDlg := FWDialogModal():New()
@@ -953,7 +983,7 @@ User Function M0603N(cCanal,cOrder)
 
 Return
 
-User Function M0603O(cCanal,cOrder,aItens)
+User Function M0603O(cCanal,cOrder,aItens,cParcela)
     Local cUrl
     Local cPath
     Local cAuth
@@ -963,11 +993,12 @@ User Function M0603O(cCanal,cOrder,aItens)
     Local cParser
     Local nX
     Local aOcorre   := {}
+    Local cParApi
 
     U_M0603R(cCanal,@aOcorre)
     
     cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
-    cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal)
+    cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal) + "?plotNumber=" + cParcela
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
     Aadd(aHeader,'Accept: application/json')
@@ -990,17 +1021,33 @@ User Function M0603O(cCanal,cOrder,aItens)
                 cTipo     := oJson['elements'][nX]['extractType']
                 nValor    := oJson['elements'][nX]['releasedValue']
                 cSituacao := oJson['elements'][nX]['situation']
-                If nValor < 0
-                    nValor := nValor * (-1)
+                cParApi   := Alltrim(Str(oJson['elements'][nX]['plotNumber']))
+                cDtRel  := oJson['elements'][nX]['releasedDate']
+                If ValType(cDtRel) == "C"
+                    cDtApi := StrTran(SubStr(cDtRel,1,10),"-","")
+                Else
+                    cDtApi := ""
                 EndIf
-                cTpTrad := ""
-                If Len(aOcorre)
-                    nPosField = 0
-                    nPosField := aScan( aOcorre, {|x| AllTrim(x[1]) == Alltrim(cTipo) } )
-                    cTpTrad := aOcorre[nPosField,2]
+                If !Empty(AllTrim(cDtApi))
+                    If cDtApi == DTOS(dDtBaixa)
+                        //If cParApi == cParcela
+                            If ValType(nValor) == "N"
+                                If nValor < 0
+                                    nValor := nValor * (-1)
+                                EndIf
+                            Else
+                                nValor := 0 
+                            EndIf
+                            cTpTrad := ""
+                            If Len(aOcorre)
+                                nPosField = 0
+                                nPosField := aScan( aOcorre, {|x| AllTrim(x[1]) == Alltrim(cTipo) } )
+                                cTpTrad := aOcorre[nPosField,2]
+                            EndIf
+                            AADD( aItens, { .F., cCanal, cOrder, cTipo, cTpTrad, Transform(nValor,'@E 999,999,999.99') , cSituacao } )
+                        //EndIf
+                    EndIf
                 EndIf
-
-                AADD( aItens, { .F., cCanal, cOrder, cTipo, cTpTrad, Transform(nValor,'@E 999,999,999.99') , cSituacao } )
             Next nX
         EndIf
     EndIF
@@ -1232,7 +1279,7 @@ User Function M0603V(aMovBan,cMsg)
     Private lMsErroAuto	    := .F.
     Private lAutoErrNoFile  := .T. 
 
-    If aMovBan[2] == "R"
+    If aMovBan[4] == "R"
         nOpcao := 4
     EndIf
 
@@ -1301,8 +1348,10 @@ User Function M0603X()
     Local aImprime := {}
     Local aErros   := {}
     Local cMsg
-    Local nOpcao   := 5
+    Local nOpcBx   := 6
+    Local nOpcLq   := 5
     Local nPosArr
+    Local aAux     := {}
 
     TRB2->(dbGoTop())
 
@@ -1319,7 +1368,7 @@ User Function M0603X()
             RecLock("TRB2",.F.)
                 If !Empty(TRB2->TMP_OK)
                     If TRB2->TMP_LIQUID == "S"
-                        lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao)
+                        lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcLq,@aAux,cCanal,TRB2->TMP_PARCEL)
                         If !lLiquida
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
                         Else
@@ -1327,7 +1376,7 @@ User Function M0603X()
                         EndIf
                     EndIf
                     If TRB2->TMP_BAIXA == "S"
-                        lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcao)
+                        lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcBx)
                         If !lBaixado
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
                         Else
@@ -1491,6 +1540,36 @@ User Function M0603Z(cOder,cCod,cCanal,nId)
                 EndIf
             Next nY
         Next nX
+    EndIf
+
+Return
+
+User Function XGETPAR(cParcela,cParLiq)
+
+    If cParcela == "1"
+        cParLiq := "A"
+    ElseIf cParcela == "2"
+        cParLiq := "B"
+    ElseIf cParcela == "3"
+        cParLiq := "C"
+    ElseIf cParcela == "4"
+        cParLiq := "D"
+    ElseIf cParcela == "5"
+        cParLiq := "E"
+    ElseIf cParcela == "6"
+        cParLiq := "F"
+    ElseIf cParcela == "7"
+        cParLiq := "G"
+    ElseIf cParcela == "8"
+        cParLiq := "H"
+    ElseIf cParcela == "9"
+        cParLiq := "I"
+    ElseIf cParcela == "10"
+        cParLiq := "J"
+    ElseIf cParcela == "11"
+        cParLiq := "K"
+    ElseIf cParcela == "12"
+        cParLiq := "L"
     EndIf
 
 Return

@@ -81,7 +81,6 @@ Static Function MenuDef
     ADD Option aRot Title 'Recarregar Conciliações' Action 'U_M0602F()'   Operation 0 Access 0
     ADD Option aRot Title 'Atualizar Repasses'      Action 'U_M0604(Alltrim(TRB->TMP_COD),Alltrim(TRB->TMP_CANAL))' Operation 0 Access 0
     
-
 Return(aRot)
 
 User Function M0602A()
@@ -198,16 +197,21 @@ User Function M0602B()
     Local lBaixado  := .F.
     Local lLiquida  := .F.
     Local nId       := 0
+    Local cParcela
+    Local cIdConc   := Alltrim(MV_PAR04)
 
     aBaixa  := {}
     aNaoRes := {}
 
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
-        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal)
+        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal,cIdConc)
 
         For nY := 1 to nVezes
             cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
             cPath := "/externalapi/orderextract/unresolveds?offset="+ Alltrim(Str(nOffSet)) + "&initDate=" + dDtIni + "&endDate=" + dDtFim
+            If !Empty(Alltrim(cIdConc))
+                cPath += "&conciliationId=" + Alltrim(cIdConc)
+            EndIf
             cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
             Aadd(aHeader,'Accept: application/json')
@@ -236,9 +240,14 @@ User Function M0602B()
                             cConta  := Strtran(NoAcento(DecodeUTF8(oJson['content'][nX]['accountName'])),"Ã?","A")
                         EndIf
                         cTipo   := oJson['content'][nX]['extractType']
-                        nValAr  := oJson['content'][nX]['releasedValue']
-                        cData   := StrTran(SubStr(oJson['content'][nX]['conciliationEndDate'],1,10),"-","")
+                        If ValType(nValAr) == "N"
+                            nValAr  := oJson['content'][nX]['releasedValue']
+                        Else
+                            nValAr := 0
+                        EndIf
+                        cData   := StrTran(SubStr(oJson['content'][nX]['releasedDate'],1,10),"-","")
                         nId     := oJson['content'][nX]['id']
+                        cParcela:= Alltrim(Str(oJson['content'][nX]['plotNumber']))
                         aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida,cData)
                         cStatus := U_M0602E(lBaixado,lLiquida)
                         nPosField := 0
@@ -256,7 +265,7 @@ User Function M0602B()
                                 nPosField2 := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(cOrder) } )
                                 If nPosField2 == 0
                                     cStatus := U_M0602I(lBaixado,lLiquida)
-                                    AADD( aNaoRes, { aTitulo[1,1],aTitulo[1,2],aTitulo[1,3],aTitulo[1,4],aTitulo[1,5],0,0,0,cData,cOrder,cStatus, Iif(lBaixado,"S","N"), Iif(lLiquida,"S","N"),cMarket,cConcId,.T. } )
+                                    AADD( aNaoRes, { aTitulo[1,1],aTitulo[1,2],aTitulo[1,3],aTitulo[1,4],aTitulo[1,5],0,0,0,cData,cOrder,cStatus, Iif(lBaixado,"S","N"), Iif(lLiquida,"S","N"),cMarket,cConcId,.T.,cParcela } )
                                 EndIf
                             Else 
                                 AADD( aSemTit, { cData,cOrder,cMarket,cConcId,nId } )
@@ -278,7 +287,7 @@ User Function M0602B()
 
 Return(aBaixa)
 
-User Function M0602C(nLimit,nOffSet,nCount,nVezes,cCod,cCanal)
+User Function M0602C(nLimit,nOffSet,nCount,nVezes,cCod,cCanal,cIdConc)
     Local cUrl
     Local cPath
     Local cAuth
@@ -292,8 +301,8 @@ User Function M0602C(nLimit,nOffSet,nCount,nVezes,cCod,cCanal)
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
         cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
         cPath := "/externalapi/orderextract/unresolveds?initDate=" + dDtIni + "&endDate=" + dDtFim
-        If !Empty(Alltrim(cCod))
-            cPath += "&conciliationId=" + Alltrim(cCod) + "&channelName=" + Alltrim(cCanal)
+        If !Empty(Alltrim(cIdConc))
+            cPath += "&conciliationId=" + Alltrim(cIdConc)
         EndIf
         cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -413,9 +422,10 @@ User Function M0602H(aBaixa)
     Local cStatus   := ""
     Local lBaixado  := .F.
     Local lLiquida  := .F.
+    Local cIdConc   := Alltrim(MV_PAR04)
 
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
-        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal)
+        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal,cIdConc)
 
         For nY := 1 to nVezes
             cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
