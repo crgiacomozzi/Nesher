@@ -733,11 +733,21 @@ User Function M0603I(cCliente,cLoja,cPrefixo,cNumero,cParcela,cTipo,nValPago,nJu
     Local cMotBai           := "NOR"
     Local nI
     Local aErro             := {}
+    Local nSaldo            := 0
+    Local nTolera           := SuperGetMV("MV_YKONTOL",.F.,0.05) 
+    Local nDif              := 0
     Private lMsErroAuto	    := .F.
     Private lAutoErrNoFile  := .T.
 
     If nOpcao == 3
         cHist := "BX AUTOM. E-COMMERCE " + cCodMkp
+        nSaldo := U_MVCE1SAL(cCodMkp)
+        If nValPago > nSaldo
+            nDif := nValPago - nSaldo
+            If nDif <= nTolera
+                nJuros += nDif
+            EndIf
+        EndIf
     ElseIf nOpcao == 6
         cHist := "EXCLUSAO BX E-COMMERCE " + cCodMkp
     EndIf
@@ -1573,3 +1583,25 @@ User Function XGETPAR(cParcela,cParLiq)
     EndIf
 
 Return
+
+User Function MVCE1SAL(cWareId)
+    Local cAlias := GetNextAlias()
+    Local cQuery
+    Local nSaldo := 0
+
+    cQuery := "SELECT * "
+    cQuery += "FROM " + RetSqlName("SE1") + " E1 "
+    cQuery += "WHERE E1.D_E_L_E_T_ = ' ' "
+    cQuery += "AND E1_FILIAL = '02' "
+    cQuery += "AND E1_IDWARE = '" + Alltrim(cWareId) + "'"
+
+    MPSysOpenQuery( cQuery, cAlias )
+
+    DBSelectArea(cAlias)
+    (cAlias)->(dbGoTop())
+    
+    If (cAlias)->E1_SALDO > 0
+        nSaldo := (cAlias)->E1_SALDO
+    EndIf
+
+Return(nSaldo)

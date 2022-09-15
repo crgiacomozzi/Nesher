@@ -345,6 +345,8 @@ User Function M0604E(cIds)
         ConOut("PUT: " + oRest:GetLastError())
     EndIf
 
+    FreeObj(oRest)
+
 Return
 
 User Function M0604F(cOrder)
