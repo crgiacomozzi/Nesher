@@ -175,18 +175,16 @@ User Function A0602B(cFilSC5,cPedSC5,cOrderId)
     cDtEnv   := U_A0602G(aPed[1,3],aPed[1,4],aPed[1,6],aPed[1,7])
     cDtNf    := SubStr(cDtEnv,1,4) + "-" + SubStr(cDtEnv,5,2) + "-" + SubStr(cDtEnv,7,2)
     aCliente := U_A0602H(aPed[1,6],aPed[1,7])
-    jJson["orderCode"]          := aPed[1,1]
-    jJson["orderId"]                := aPed[1,1]
-    jJson["orderDate"]              := cDate + "T00:00:00.420+0000"
-    jJson["orderStatus"]            := "CONCLUDED"
-    jJson["hubName"]                := "EXTERNAL_API"
-    jJson["accountName"]            := "Nesher"
-    jJson["channelName"]            := "PAGSEGURO"
-    jJson["totalFreightValue"]      := aPed[1,5]
-    jJson["invoiceNumber"]          := aPed[1,3]
-    jJson["invoiceDate"]            := cDtNf + "T00:00:00.420+0000"
-    jJson["customerName"]           := aCliente[1,1]
-    jJson["customerDocumentNumber"] := aCliente[1,2]
+    jJson["orderCode"]                  := aPed[1,1]
+    jJson["orderId"]                    := aPed[1,1]
+    jJson["orderDate"]                  := cDate + "T00:00:00.420+0000"
+    jJson["orderStatus"]                := "CONCLUDED"
+    jJson["hubName"]                    := "EXTERNAL_API"
+    jJson["accountName"]                := "Nesher"
+    jJson["channelName"]                := "PAGSEGURO"
+    jJson["totalFreightValue"]          := aPed[1,5]
+    jJson["invoiceNumber"]              := aPed[1,3]
+    jJson["invoiceDate"]                := cDtNf + "T00:00:00.420+0000"
     For nX := 1 to Len(aItens)
         AADD(aItjson,JsonObject():New())
         aItjson[nX]['idInMarketplace']  := aItens[nX,1]
@@ -208,6 +206,9 @@ User Function A0602B(cFilSC5,cPedSC5,cOrderId)
     jJson["items"] := aItjson
     jJson["payments"] := JsonObject():New()
     jJson["payments"] := aPgto
+    jJson["customer"] := JsonObject():New()
+        jJson['customer']["name"]           := aCliente[1,1]
+        jJson['customer']["documentNumber"] := aCliente[1,2]
 
 return jJson:ToJson()
 
