@@ -52,11 +52,11 @@ Return
 Static Function MenuDef()
     Local aRotina := {}
 
-    ADD OPTION aRotina TITLE "Pesquisar"  	            ACTION 'PesqBrw' 		  OPERATION 1 ACCESS 0
-    ADD OPTION aRotina TITLE "Visualizar" 	            ACTION "VIEWDEF.PN_A0602" OPERATION 2 ACCESS 0
-    ADD OPTION aRotina TITLE "Integrar Título Koncili"  ACTION "U_A0602A(SC5->C5_FILIAL,SC5->C5_NUM,SC5->C5_YINTKO,SC5->C5_YORDID)"       OPERATION 8 ACCESS 0
-    ADD OPTION aRotina TITLE "Alterar Título Koncili"   ACTION "U_A0602E(SC5->C5_FILIAL,SC5->C5_NUM,SC5->C5_YINTKO,SC5->C5_YORDID)"       OPERATION 8 ACCESS 0
-    ADD OPTION aRotina TITLE "Excluir Título Koncili"   ACTION "U_A0602F(SC5->C5_FILIAL,SC5->C5_NUM,SC5->C5_PN_IDFR,Alltrim(SC5->C5_NOMMKT),SC5->C5_YINTKO)"       OPERATION 8 ACCESS 0
+    ADD OPTION aRotina TITLE 'Pesquisar'  	            ACTION 'PesqBrw' 		  OPERATION 1 ACCESS 0
+    ADD OPTION aRotina TITLE 'Visualizar' 	            ACTION 'VIEWDEF.PN_A0602' OPERATION 2 ACCESS 0
+    ADD OPTION aRotina TITLE 'Integrar Título Koncili'  ACTION 'FwMsgRun(,{ || U_A0602A(SC5->C5_FILIAL,SC5->C5_NUM,SC5->C5_YINTKO,SC5->C5_YORDID) }, "Processando a integração do título selecionado.", "Aguarde...")'       OPERATION 8 ACCESS 0
+    ADD OPTION aRotina TITLE 'Alterar Título Koncili'   ACTION 'FwMsgRun(,{ || U_A0602E(SC5->C5_FILIAL,SC5->C5_NUM,SC5->C5_YINTKO,SC5->C5_YORDID) }, "Processando a alteração do título selecionado.", "Aguarde...")'        OPERATION 8 ACCESS 0
+    ADD OPTION aRotina TITLE 'Excluir Título Koncili'   ACTION 'FwMsgRun(,{ || U_A0602F(SC5->C5_FILIAL,SC5->C5_NUM,SC5->C5_PN_IDFR,Alltrim(SC5->C5_NOMMKT),SC5->C5_YINTKO) }, "Processando a exclusão do título selecionado.", "Aguarde...")'       OPERATION 8 ACCESS 0
 
 Return aRotina
 
