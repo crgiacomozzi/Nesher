@@ -332,7 +332,7 @@ User Function M0603E(cOrder,cCanal,aOcoKon,cParcela)
     Local cDtApi
 
     cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
-    cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal) + "?plotNumber=" + cParcela
+    cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal) // + "?plotNumber=" + cParcela
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
     Aadd(aHeader,'Accept: application/json')
@@ -363,16 +363,14 @@ User Function M0603E(cOrder,cCanal,aOcoKon,cParcela)
                 EndIf
                 If !Empty(AllTrim(cDtApi))
                     If cDtApi == DTOS(dDtBaixa)
-                        //If cParApi == cParcela
-                            If ValType(nValor) == "N"
-                                If nValor < 0 
-                                    nValor := nValor * (-1)
-                                EndIf
-                            Else 
-                                nValor := 0
+                        If ValType(nValor) == "N"
+                            If nValor < 0 
+                                nValor := nValor * (-1)
                             EndIf
-                            AADD( aOcoKon, { cTipo,nValor } )
-                        //EndIf
+                        Else 
+                            nValor := 0
+                        EndIf
+                        AADD( aOcoKon, { cTipo,nValor } )
                     EndIf
                 EndIf
             Next nX
@@ -434,6 +432,8 @@ User Function M0603G()
     Local cStatus
     Local nPosArr
     Local aAux    := {}
+    Local cTpOco  := "VALOR_NEGATIVO"
+    Local aOcoPro := {}
 
     TRB2->(dbGoTop())
 
@@ -449,7 +449,7 @@ User Function M0603G()
         Begin Transaction
             RecLock("TRB2", .F.)
                 If !Empty(TRB2->TMP_OK)
-                    If TRB2->TMP_LIQUID == "N" .AND. TRB2->TMP_VALCOM > 0
+                    If TRB2->TMP_LIQUID == "N" .AND. TRB2->TMP_VALCOM > 0 .AND. TRB2->TMP_VALPAG > 0
                         lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao,@aAux,cCanal,TRB2->TMP_PARCEL)
                         If !lLiquida
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
@@ -463,6 +463,12 @@ User Function M0603G()
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
                         Else
                             TRB2->TMP_BAIXA := "S"
+                        EndIf
+                    EndIf
+                    If TRB2->TMP_VALPAG < 0
+                        U_M0603F(cCanal,cTpOco,@aOcoPro)
+                        If Len(aOcoPro) > 0
+                            AADD(aMovBan, { TRB2->TMP_VALPAG, aOcoPro[nX,5], Alltrim(aOcoPro[nX,6]) + " " + TRB2->TMP_CODMAR, aOcoPro[nX,7], aOcoPro[nX,8], TRB2->TMP_TITULO } )
                         EndIf
                     EndIf
                 EndIf
@@ -1008,7 +1014,7 @@ User Function M0603O(cCanal,cOrder,aItens,cParcela)
     U_M0603R(cCanal,@aOcorre)
     
     cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
-    cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal) + "?plotNumber=" + cParcela
+    cPath := "/externalapi/orderextract/"+ Alltrim(cOrder) + "/" + Alltrim(cCanal) //+ "?plotNumber=" + cParcela
     cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
     Aadd(aHeader,'Accept: application/json')

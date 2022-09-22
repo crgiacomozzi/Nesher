@@ -19,7 +19,18 @@ User Function A0602()
     Local nDiaLim   := SuperGetMV("MV_YDLIMKO",.F.,60)
     Local cDtLimit  := DTOS(DaySub(dDatabase,nDiaLim))
     Local cCondicao := "UPPER(Alltrim(SC5->C5_NOMMKT)) == 'PAGSEGURO' .AND. SC5->C5_EMISSAO >= '" + cDtLimit + "'"
+    Private lRpc    := Type("cFilAnt") == "U"
     Private aRotina := MenuDef()
+
+    If lRpc
+		RPCSetType(3)
+		RpcSetEnv('01','02',,,,GetEnvServer(),{ })
+	Else 
+        If cFilAnt == "01"
+            Aviso("Atenção!","Operação não permitida para a MATRIZ.",{"Ok"})
+            Return
+        EndIf
+    EndIf
 
     oBrowse := FWMBrowse():New()
     oBrowse:SetAlias(cAlias1)
@@ -266,9 +277,10 @@ User Function A0602D(cFilSC5,cPedSC5)
     DbSelectArea(cAlias)
     (cAlias)->(DbGoTop())
 
-    If !Empty((cAlias)->C6_NUM)
+    While !((cAlias)->(Eof()))
         AADD( aItens, {Alltrim((cAlias)->C6_PRODUTO), (cAlias)->C6_QTDVEN, (cAlias)->C6_PRCVEN } )
-    EndIf
+        (cAlias)->(dbSkip())
+    EndDo
 
     (cAlias)->(DbCloseArea())
 
