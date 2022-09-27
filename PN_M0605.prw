@@ -54,8 +54,8 @@ Return Nil
 Static Function MenuDef()
     Local aRot := {}
      
-    ADD OPTION aRot TITLE 'Compensar Títulos'     ACTION 'U_M0605A(ZZA_CODMKT,ZZA_CODFOR,ZZA_LOJFOR)'  OPERATION 0 ACCESS 0
-    ADD OPTION aRot TITLE 'Cancelar Compensação'  ACTION 'U_M0605J(ZZA_CODMKT,ZZA_CODFOR,ZZA_LOJFOR)'  OPERATION 0 ACCESS 0
+    ADD OPTION aRot TITLE 'Compensar Títulos'     ACTION 'U_M0605A(ZZA_CODMKT,ZZA_MKTID)'  OPERATION 0 ACCESS 0
+    ADD OPTION aRot TITLE 'Cancelar Compensação'  ACTION 'U_M0605J(ZZA_CODMKT,ZZA_MKTID)'  OPERATION 0 ACCESS 0
  
 Return aRot
  
@@ -106,7 +106,7 @@ Static Function ViewDef()
 
 Return oView
 
-User Function M0605A(cMarket,cFornece,cLojFor)
+User Function M0605A(cMarket,cMktId)
     Local oDlg
     Local aSize   := {}
     Local aBut450 := {}
@@ -122,6 +122,7 @@ User Function M0605A(cMarket,cFornece,cLojFor)
     Local cMarca
     Local TRB2     := ""
     Local nOpcao   := 3
+    Local aFornece := {}
     Local aCampos := {  {"TMP_OK"       ,"C", 2,0},;
                         {"TMP_TIPO"     ,"C", 1,0},;
                         {"TMP_TITULO"   ,"C", 9,0},;
@@ -175,7 +176,14 @@ User Function M0605A(cMarket,cFornece,cLojFor)
 
     aCarrega := {}
 
-    TRB2 := U_M0605B(aCampos,dDtIni,dDtFim,cMarket,cFornece,cLojFor,@nTotalP,@nTotalR)
+    aFornece := U_M0605N(cMktId)
+    
+    If Len(aFornece) > 0
+        TRB2 := U_M0605B(aCampos,dDtIni,dDtFim,cMarket,aFornece,@nTotalP,@nTotalR)
+    Else 
+        Aviso("Atenção!","Amarração fornecedor X marketplace não encontrada.",{"Ok"})
+        Return
+    EndIf
 
     DbSelectArea("TRB2")
     TRB2->(DbGoTop())
@@ -215,7 +223,7 @@ User Function M0605A(cMarket,cFornece,cLojFor)
     
 Return
 
-User Function M0605B(aCampos,dDtIni,dDtFim,cMarket,cFornece,cLojFor,nTotalP,nTotalR)
+User Function M0605B(aCampos,dDtIni,dDtFim,cMarket,aFornece,nTotalP,nTotalR)
     Local nX
 
     If(Type('oTable') <> 'U')
@@ -228,7 +236,7 @@ User Function M0605B(aCampos,dDtIni,dDtFim,cMarket,cFornece,cLojFor,nTotalP,nTot
 
     oTable:Create()
 
-    U_M0605E(@aCarrega,dDtIni,dDtFim,cFornece,cLojFor,@nTotalP) // carrega títulos a pagar
+    U_M0605E(@aCarrega,dDtIni,dDtFim,aFornece,@nTotalP) // carrega títulos a pagar
     U_M0605F(@aCarrega,dDtIni,dDtFim,cMarket,@nTotalR) // carrega títulos a receber
 
     If Len(aCarrega) > 0
@@ -373,31 +381,34 @@ Return
     @author Pono Tecnologia
     @since 08/08/2022
     /*/
-User Function M0605E(aCarrega,dDtIni,dDtFim,cFornece,cLojFor,nTotalP)
+User Function M0605E(aCarrega,dDtIni,dDtFim,aFornece,nTotalP)
     Local cAlias := GetNextAlias()
     Local cQuery
+    Local nX
 
-    cQuery := "SELECT * "
-    cQuery += "FROM " + RetSqlName("SE2") + " "
-    cQuery += "WHERE D_E_L_E_T_ = ' ' "
-    cQuery += "AND E2_FILIAL = '" + xFilial("SE2") + "' "
-    cQuery += "AND E2_FORNECE = '" + Alltrim(cFornece) + "' "
-    cQuery += "AND E2_LOJA = '" + Alltrim(cLojFor) + "' "
-    cQuery += "AND E2_SALDO > 0 "
-    cQuery += "AND E2_EMISSAO >= '" + DTOS(dDtIni) + "' AND E2_EMISSAO <= '" + DTOS(dDtFim) + "'"
+    For nX := 1 to Len(aFornece)
+        cQuery := "SELECT * "
+        cQuery += "FROM " + RetSqlName("SE2") + " "
+        cQuery += "WHERE D_E_L_E_T_ = ' ' "
+        cQuery += "AND E2_FILIAL = '" + xFilial("SE2") + "' "
+        cQuery += "AND E2_FORNECE = '" + Alltrim(aFornece[nX,1]) + "' "
+        cQuery += "AND E2_LOJA = '" + Alltrim(aFornece[nX,2]) + "' "
+        cQuery += "AND E2_SALDO > 0 "
+        cQuery += "AND E2_EMISSAO >= '" + DTOS(dDtIni) + "' AND E2_EMISSAO <= '" + DTOS(dDtFim) + "'"
 
-    MPSysOpenQuery( cQuery, cAlias )
+        MPSysOpenQuery( cQuery, cAlias )
 
-    DBSelectArea(cAlias)
-    (cAlias)->(dbGoTop())
-    
-    While !(cAlias)->((Eof()))
-        AADD( aCarrega, { "P", (cAlias)->E2_NUM, (cAlias)->E2_SALDO, 0, (cAlias)->E2_EMISSAO, (cAlias)->E2_VENCTO, (cAlias)->E2_SALDO, (cAlias)->E2_JUROS, (cAlias)->E2_MULTA, (cAlias)->E2_DESCONT, (cAlias)->E2_ACRESC, (cAlias)->E2_DECRESC, (cAlias)->E2_FORNECE, (cAlias)->E2_LOJA, (cAlias)->E2_NOMFOR, (cAlias)->E2_PREFIXO, (cAlias)->E2_PARCELA, (cAlias)->E2_TIPO } )
-        nTotalP += (cAlias)->E2_SALDO
-        (cAlias)->(dbSkip())
-    EndDo
-    
-    (cAlias)->(dbCloseArea())    
+        DBSelectArea(cAlias)
+        (cAlias)->(dbGoTop())
+        
+        While !(cAlias)->((Eof()))
+            AADD( aCarrega, { "P", (cAlias)->E2_NUM, (cAlias)->E2_SALDO, 0, (cAlias)->E2_EMISSAO, (cAlias)->E2_VENCTO, (cAlias)->E2_SALDO, (cAlias)->E2_JUROS, (cAlias)->E2_MULTA, (cAlias)->E2_DESCONT, (cAlias)->E2_ACRESC, (cAlias)->E2_DECRESC, (cAlias)->E2_FORNECE, (cAlias)->E2_LOJA, (cAlias)->E2_NOMFOR, (cAlias)->E2_PREFIXO, (cAlias)->E2_PARCELA, (cAlias)->E2_TIPO } )
+            nTotalP += (cAlias)->E2_SALDO
+            (cAlias)->(dbSkip())
+        EndDo
+        
+        (cAlias)->(dbCloseArea())
+    Next nX
 
 Return
 
@@ -512,7 +523,7 @@ Return
     @param cFornece, Character, Código do fornecedor
     @param cLojFor , Character, Loja do fornecedor
     /*/
-User Function M0605J(cMarket,cFornece,cLojFor)
+User Function M0605J(cMarket,cMktId)
     Local oDlg
     Local aSize   := {}
     Local aBut450 := {}
@@ -528,6 +539,7 @@ User Function M0605J(cMarket,cFornece,cLojFor)
     Local cMarca
     Local TRB3     := ""
     Local nOpcao   := 5
+    Local aFornece := {}
     Local aCampos := {  {"TMP_OK"       ,"C", 2,0},;
                         {"TMP_TIPO"     ,"C", 1,0},;
                         {"TMP_TITULO"   ,"C", 9,0},;
@@ -581,7 +593,15 @@ User Function M0605J(cMarket,cFornece,cLojFor)
 
     aCarrega := {}
 
-    TRB3 := U_M0605K(aCampos,dDtIni,dDtFim,cMarket,cFornece,cLojFor,@nTotalP,@nTotalR)
+    aFornece := U_M0605N(cMktId)
+    
+    If Len(aFornece) > 0
+        TRB3 := U_M0605K(aCampos,dDtIni,dDtFim,cMarket,aFornece,@nTotalP,@nTotalR)
+    Else 
+        Aviso("Atenção!","Amarração fornecedor X marketplace não encontrada.",{"Ok"})
+        Return
+    EndIf
+
 
     DbSelectArea("TRB3")
     TRB3->(DbGoTop())
@@ -627,7 +647,7 @@ Return
     @since 29/08/2022
     @version 12.1.33+
     /*/
-User Function M0605K(aCampos,dDtIni,dDtFim,cMarket,cFornece,cLojFor,nTotalP,nTotalR)
+User Function M0605K(aCampos,dDtIni,dDtFim,cMarket,aFornece,nTotalP,nTotalR)
     Local nX
 
     aCarrega := {}
@@ -642,7 +662,7 @@ User Function M0605K(aCampos,dDtIni,dDtFim,cMarket,cFornece,cLojFor,nTotalP,nTot
 
     oTable:Create()
 
-    U_M0605L(aCarrega,dDtIni,dDtFim,cMarket,nTotalP,nTotalR,cFornece,cLojFor) // Carrega títulos compensados para o fornecedor informado
+    U_M0605L(aCarrega,dDtIni,dDtFim,cMarket,nTotalP,nTotalR,aFornece) // Carrega títulos compensados para o fornecedor informado
 
     If Len(aCarrega) > 0
 
@@ -687,36 +707,38 @@ Return
     @author Pono Tecnologia
     @since 29/08/2022
     /*/
-User Function M0605L(aCarrega,dDtIni,dDtFim,cMarket,nTotalP,nTotalR,cFornece,cLojFor)
+User Function M0605L(aCarrega,dDtIni,dDtFim,cMarket,nTotalP,nTotalR,aFornece)
     Local cAlias   := GetNextAlias()
     Local cQuery
+    Local nX
 
-    cQuery := "SELECT * "
-    cQuery += "FROM " + RetSqlName("SE1") + " "
-    cQuery += "WHERE D_E_L_E_T_ = ' ' "
-    cQuery += "AND E1_FILIAL = '" + xFilial("SE1") + "' "
-    cQuery += "AND E1_NUMLIQ != '' "
-    cQuery += "AND E1_STATUS = 'B' "
-    cQuery += "AND E1_EMISSAO >= '" + DTOS(dDtIni) + "' AND E1_EMISSAO <= '" + DTOS(dDtFim) + "' "
-    cQuery += "AND E1_CODMKT = '" + cMarket + "' "
-    cQuery += "AND E1_RESOLKO = 'S'"
+    For nX := 1 To Len(aFornece)
+        cQuery := "SELECT * "
+        cQuery += "FROM " + RetSqlName("SE1") + " "
+        cQuery += "WHERE D_E_L_E_T_ = ' ' "
+        cQuery += "AND E1_FILIAL = '" + xFilial("SE1") + "' "
+        cQuery += "AND E1_NUMLIQ != '' "
+        cQuery += "AND E1_STATUS = 'B' "
+        cQuery += "AND E1_EMISSAO >= '" + DTOS(dDtIni) + "' AND E1_EMISSAO <= '" + DTOS(dDtFim) + "' "
+        cQuery += "AND E1_CODMKT = '" + cMarket + "' "
+        cQuery += "AND E1_RESOLKO = 'S'"
 
-    MPSysOpenQuery( cQuery, cAlias )
+        MPSysOpenQuery( cQuery, cAlias )
 
-    DBSelectArea(cAlias)
-    (cAlias)->(dbGoTop())
-    
-    While !(cAlias)->((Eof()))
-        AADD( aCarrega, { "R", (cAlias)->E1_NUM, 0, (cAlias)->E1_SALDO, (cAlias)->E1_EMISSAO, (cAlias)->E1_VENCTO, (cAlias)->E1_SALDO, (cAlias)->E1_JUROS, (cAlias)->E1_MULTA, (cAlias)->E1_DESCONT, (cAlias)->E1_ACRESC, (cAlias)->E1_DECRESC, (cAlias)->E1_CLIENTE, (cAlias)->E1_LOJA, (cAlias)->E1_NOMCLI, (cAlias)->E1_PREFIXO, (cAlias)->E1_PARCELA, (cAlias)->E1_TIPO } )
-        U_M0605M((cAlias)->E1_IDENTEE,cFornece,cLojFor,@aCarrega,nTotalP)
-        nTotalR += (cAlias)->E1_SALDO
-        (cAlias)->(dbSkip())
-    EndDo
-    
-    aSort(aCarrega,,,{|x,y|x[1] < y[1]})
-    
-    (cAlias)->(dbCloseArea())    
-
+        DBSelectArea(cAlias)
+        (cAlias)->(dbGoTop())
+        
+        While !(cAlias)->((Eof()))
+            AADD( aCarrega, { "R", (cAlias)->E1_NUM, 0, (cAlias)->E1_SALDO, (cAlias)->E1_EMISSAO, (cAlias)->E1_VENCTO, (cAlias)->E1_SALDO, (cAlias)->E1_JUROS, (cAlias)->E1_MULTA, (cAlias)->E1_DESCONT, (cAlias)->E1_ACRESC, (cAlias)->E1_DECRESC, (cAlias)->E1_CLIENTE, (cAlias)->E1_LOJA, (cAlias)->E1_NOMCLI, (cAlias)->E1_PREFIXO, (cAlias)->E1_PARCELA, (cAlias)->E1_TIPO } )
+            U_M0605M((cAlias)->E1_IDENTEE,aFornece[nX,1],aFornece[nX,2],@aCarrega,nTotalP)
+            nTotalR += (cAlias)->E1_SALDO
+            (cAlias)->(dbSkip())
+        EndDo
+        
+        aSort(aCarrega,,,{|x,y|x[1] < y[1]})
+        
+        (cAlias)->(dbCloseArea())    
+    Next nX
 Return
 
 User Function M0605M(cComp,cFornece,cLojFor,aCarrega,nTotalP)
@@ -759,3 +781,37 @@ User Function M0605M(cComp,cFornece,cLojFor,aCarrega,nTotalP)
     (cAlias)->(dbCloseArea())    
 
 Return
+
+/*/{Protheus.doc} M0605N
+    Função responsável por retornar os fornecedores cadastrados para o marketplace selecioando.
+    @type  Function
+    @author Pono Tecnologia
+    @since 27/09/2022
+    @version 12.1.33+
+    @param cMktId, Character, Código do marketplace
+    @return Array, Array contendo os códigos e lojas dos fornecedores cadastrados para o marketplace selecionado.
+    /*/
+User Function M0605N(cMktId)
+    Local cAlias   := GetNextAlias()
+    Local cQuery
+    Local aFornece := {}
+
+    cQuery := "SELECT * "
+    cQuery += "FROM " + RetSqlName("ZZE") + " "
+    cQuery += "WHERE D_E_L_E_T_ = ' ' "
+    cQuery += "AND ZZE_FILIAL = '" + xFilial("ZZE") + "' "
+    cQuery += "AND ZZE_MKTID = '" + cMktId + "' "
+
+    MPSysOpenQuery( cQuery, cAlias )
+
+    DBSelectArea(cAlias)
+    (cAlias)->(dbGoTop())
+    
+    While !(cAlias)->((Eof()))
+        AADD( aFornece, { (cAlias)->ZZE_CODFOR, (cAlias)->ZZE_LOJFOR } )
+        (cAlias)->(dbSkip())
+    EndDo
+    
+    (cAlias)->(dbCloseArea())    
+
+Return(aFornece)

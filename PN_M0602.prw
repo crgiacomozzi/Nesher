@@ -430,6 +430,9 @@ User Function M0602H(aBaixa)
         For nY := 1 to nVezes
             cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
             cPath := "/externalapi/orderextract/concilieds?offset="+ Alltrim(Str(nOffSet)) + "&initDate=" + dDtIni + "&endDate=" + dDtFim
+            If !Empty(Alltrim(cIdConc))
+                cPath += "&conciliationId=" + Alltrim(cIdConc)
+            EndIf
             cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
             Aadd(aHeader,'Accept: application/json')

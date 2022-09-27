@@ -116,7 +116,7 @@ User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
     aAdd(aCpoData, {'TMP_STATUS'    , 'C' , 01, 0})
     aAdd(aCpoData, {'TMP_BAIXA'     , 'C' , 01, 0})
     aAdd(aCpoData, {'TMP_LIQUID'    , 'C' , 01, 0})
-    aAdd(aCpoData, {'TMP_PARCEL'    , 'C' , 01, 0})
+    aAdd(aCpoData, {'TMP_PARCEL'    , 'C' , 02, 0})
 
     For nI := 1 To Len(aCpoData)
 
@@ -225,7 +225,7 @@ User Function M0603B(cCod,cCanal,dDtIni,dDtFim)
                 If Alltrim(aSemTit[nY,3]) == Alltrim(cCanal) .AND. Alltrim(aSemTit[nY,4]) == Alltrim(cCod)
                     U_M0603Z(aSemTit[nY,3],cCod,cCanal,Alltrim(Str(aSemTit[nY,5])))
                 EndIf
-            Next nZ
+            Next nY
         EndIf
 
     EndIf
@@ -513,7 +513,7 @@ User Function M0603G()
                 EndIf
                 lLiquida := .F.
                 lBaixado := .F.
-            MsUnLock()
+            TRB2->(MsUnLock())
             TRB2->(dbSkip())
         End Transaction
     EndDo

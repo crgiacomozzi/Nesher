@@ -5,6 +5,7 @@
 Static cTitulo := "Cadastro de Marketplaces"
 Static cAlias1 := "ZZA"
 Static cAlias2 := "ZZB"
+Static cAlias3 := "ZZE"
 
 /*/{Protheus.doc} A0601
     Função responsável manutenção do cadastro de marketplaces e suas ocorrênicas.
@@ -52,24 +53,31 @@ Return aRotina
     @version 12.1.33
     /*/
 Static Function ModelDef()
-    Local oModel := Nil
-    Local oMaster  := FWFormStruct( 1, cAlias1 )
-    Local oFilho  := FWFormStruct( 1, cAlias2 )
+    Local oModel    := Nil
+    Local oMaster   := FWFormStruct( 1, cAlias1 )
+    Local oFilho1   := FWFormStruct( 1, cAlias2 )
+    Local oFilho2   := FWFormStruct( 1, cAlias3 )
 
     //Criando o modelo
     oModel := MPFormModel():New('PN_A0601M',,,)
 
     oModel:addFields("MASTER", Nil, oMaster)
 
-    // Criando a grid do filho
-    oModel:AddGrid('FILHO', 'MASTER', oFilho ,,,,)
+    // Criando a grid do FILHO1 e FILHO2
+    oModel:AddGrid('FILHO1', 'MASTER', oFilho1 ,,,,)
+    oModel:AddGrid('FILHO2', 'MASTER', oFilho2 ,,,,)
 
-    // Criando o relacionamento do Filho 1
-    oModel:SetRelation( 'FILHO' ,{{'ZZB_FILIAL','xFilial("ZZB")'},{'ZZB_MKTID','ZZA_MKTID'}},ZZB->(IndexKey(1)))
-    oModel:GetModel('FILHO'):SetUniqueLine({"ZZB_FILIAL","ZZB_MKTID","ZZB_ITEM"})
+    // Criando o relacionamento do FILHO 1
+    oModel:SetRelation( 'FILHO1' ,{{'ZZB_FILIAL','xFilial("ZZB")'},{'ZZB_MKTID','ZZA_MKTID'}},ZZB->(IndexKey(1)))
+    oModel:GetModel('FILHO1'):SetUniqueLine({"ZZB_FILIAL","ZZB_MKTID","ZZB_ITEM"})
+
+    // Criando o relacionamento do FILHO 2
+    oModel:SetRelation( 'FILHO2' ,{{'ZZE_FILIAL','xFilial("ZZE")'},{'ZZE_MKTID','ZZA_MKTID'}},ZZE->(IndexKey(1)))
+    oModel:GetModel('FILHO2'):SetUniqueLine({"ZZE_FILIAL","ZZE_CODFOR","ZZE_LOJFOR"})
 
    	// Permite grid vazio
-    oModel:GetModel('FILHO'):SetOptional( .T. )
+    oModel:GetModel('FILHO1'):SetOptional( .T. )
+    oModel:GetModel('FILHO2'):SetOptional( .T. )
 
     oModel:SetPrimaryKey({"ZZA_FILIAL", "ZZA_MKTID" })
     oModel:SetDescription(cTitulo)
@@ -87,32 +95,42 @@ Return oModel
 Static Function ViewDef()
     Local oModel:= FWLoadModel( "PN_A0601" )
     Local oMaster	:= FWFormStruct( 2, cAlias1 )
-    Local oFilho	:= FWFormStruct( 2, cAlias2 )
+    Local oFilho1	:= FWFormStruct( 2, cAlias2 )
+    Local oFilho2	:= FWFormStruct( 2, cAlias3 )
     Local oView := Nil
     
     oView := FWFormView():New()
     oView:SetModel(oModel)
     
-    oFilho:RemoveField('ZZB_MKTID')
+    oFilho1:RemoveField('ZZB_MKTID')
+    oFilho2:RemoveField('ZZE_MKTID')
 
     oView:AddUserButton( 'Busca ocorrências', 'CLIPS', { | oView| U_A0601B(FWFldGet("ZZA_MKTID")) } ,,,{ MODEL_OPERATION_INSERT,MODEL_OPERATION_UPDATE } )
 
     oView:AddField( "VIEW_MASTER" , oMaster , 'MASTER' )
-
-    oView:AddGrid( 'VIEW_FILHO', oFilho , 'FILHO' )
-
-    oView:CreateHorizontalBox('CABEC', 50)
-    oView:CreateHorizontalBox('GRID' , 50)
-
     oView:EnableTitleView('VIEW_MASTER', 'Cadastro das ocorrência dos marketplaces' )
-    oView:SetCloseOnOk({||.T.})
 
-    oView:SetOwnerView('VIEW_MASTER', 'CABEC')
-    oView:SetOwnerView('VIEW_FILHO', 'GRID')
+    oView:AddGrid( 'VIEW_FILHO1', oFilho1 , 'FILHO1' )
+    oView:AddGrid( 'VIEW_FILHO2', oFilho2 , 'FILHO2' )
+
+    oView:CreateHorizontalBox('SUPERIOR', 50)
+    oView:CreateHorizontalBox('INFERIOR', 50)
     
-    oView:AddIncrementField('VIEW_FILHO', 'ZZB_ITEM')
+    oView:SetCloseOnOk({||.T.})
+    
+    oView:CreateFolder('PASTA_FILHOS', 'INFERIOR')
+    oView:AddSheet('PASTA_FILHOS', 'ABA_FILHO01', "Cadastro de ocorrências")
+    oView:AddSheet('PASTA_FILHOS', 'ABA_FILHO02', "Cadastro de fornecedores")
+    
+    oView:CreateHorizontalBox('ITENS_FILHO01', 100,,, 'PASTA_FILHOS', 'ABA_FILHO01' )
+    oView:CreateHorizontalBox('ITENS_FILHO02', 100,,, 'PASTA_FILHOS', 'ABA_FILHO02' )
 
-    oView:EnableTitleView("VIEW_FILHO", "Cadastro de ocorrências")
+    oView:SetOwnerView('VIEW_MASTER', 'SUPERIOR')
+    oView:SetOwnerView('VIEW_FILHO1', 'ITENS_FILHO01')
+    oView:SetOwnerView('VIEW_FILHO2', 'ITENS_FILHO02')
+    
+    oView:AddIncrementField('VIEW_FILHO1', 'ZZB_ITEM')
+    oView:AddIncrementField('VIEW_FILHO2', 'ZZE_ITEM')
 
     oView:EnableControlBar(.T.)    
 	
@@ -410,7 +428,7 @@ User Function A0601K(aItens,cCodMkt)
     Local nX
     Local oModel    := FwModelActive()
     Local oView     := FwViewActive()
-    Local oModelGrd := oModel:GetModel("FILHO")
+    Local oModelGrd := oModel:GetModel("FILHO1")
     Local nTamGrd   := oModelGrd:Length()
     
     If Len(aItens) > 0
@@ -429,6 +447,6 @@ User Function A0601K(aItens,cCodMkt)
     oModelGrd:SetLine(1)
     oModelGrd:GoLine(1)
 
-    oView:Refresh("FILHO")
+    oView:Refresh("FILHO1")
 
 Return

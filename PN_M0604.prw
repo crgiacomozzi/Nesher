@@ -21,215 +21,93 @@ User Function M0604(cCod,cCanal)
     Private aMovBan     := {}
     Private dDtIni
     Private dDtFim
+    Private dDtBaixa
+    Private cConcId
     Private aCarrega    := {}
 
     Pergunte("M0602",.T.)
 
     dDtIni    := MV_PAR01
     dDtFim    := MV_PAR02
+    dDtBaixa  := MV_PAR03
+    cConcId   := Alltrim(MV_PAR04)
 
-    FwMsgRun(,{ || U_M0604A(cCod,cCanal) }, "Processamento de títulos da Koncili", 'Carregando dados...')
+    If !Empty(Alltrim(cConcId))
+        nOpc := Aviso( "Resolução de títulos", "Confirma resolução dos títulos da conciliação ID " + Alltrim(cConcId), { "Sim", "Não"} , 2)
+        If nOpc == 2
+            Return
+        EndIf
+    Else
+        Aviso( "Resolução de títulos", "O parâmetro ID da conciliação é obrigatório", { "Sim"} , 1)
+        Return
+    EndIf
 
-    oMarkBrw4 := FwMarkBrowse():New()
-    oMarkBrw4:SetAlias('TRB3')
-    oMarkBrw4:SetTemporary()
+    FwMsgRun(,{ || U_M0604B(cCod,cCanal,@aCarrega) }, "Processamento de títulos da Koncili", 'Carregando dados...')
 
-	//Legenda da grade, é obrigatório carregar antes de montar as colunas
-	oMarkBrw4:AddLegend("TMP_STATUS=='A'","GREEN" 	,"Título Aberto")
-	oMarkBrw4:AddLegend("TMP_STATUS=='B'","BLUE"  	,"Título Baixado sem liquidação")
-	oMarkBrw4:AddLegend("TMP_STATUS=='C'","YELLOW"  ,"Título liquidado sem baixa")
-    oMarkBrw4:AddLegend("TMP_STATUS=='D'","RED"  	,"Título Baixado e liquidado")
-
-    oMarkBrw4:SetColumns(aCampos)
-    oMarkBrw4:SetFieldMark('TMP_OK')
-    oMarkBrw4:SetMenuDef('M06003')
-    oMarkBrw4:SetDescription('Processamento de títulos Koncilli')
-    oMarkBrw4:SetAllMark( { || U_M0604J(oMarkBrw4:Mark(),lMarcar := !lMarcar ), oMarkBrw4:Refresh(.T.)  } )
-    oMarkBrw4:Activate()
-    
-    If(Type('oTable') <> 'U')
-        oTable:Delete()
-        oTable := Nil
+    If Len(aCarrega) > 0
+        FwMsgRun(,{ || U_M0604C(cCanal,cCod) }, "Enviando resolução dos títulos selecionados para Koncili", "Aguarda...")
     EndIf
 
     RestArea(aArea)
 
-Return
-
-User Function M0604A(cCod,cCanal)
-    Local nI, nX
-    
-    aCarrega := {}
-    
-    If(Type('oTable') <> 'U')
-        oTable:Delete()
-        oTable := Nil
-    EndIf
-
-    oTable   := FwTemporaryTable():New('TRB3')
-    aCampos  := {}
-    aCpoInfo := {}
-    aCpoData := {}
-
-    aAdd(aCpoInfo, {'Marcar'                , '@!' , 1})
-    aAdd(aCpoInfo, {'Marketplace'           , '@!' , 1})
-    aAdd(aCpoInfo, {'Id Conciliação'        , '@!' , 1})
-    aAdd(aCpoInfo, {'Cliente'               , '@!' , 1})
-    aAdd(aCpoInfo, {'Loja'                  , '@!' , 1})
-    aAdd(aCpoInfo, {'Nome'                  , '@!' , 1})
-    aAdd(aCpoInfo, {'Título'                , '@!' , 1})
-    aAdd(aCpoInfo, {'Valor'                 , '@E 999,999,999.99' , 2})
-    aAdd(aCpoInfo, {'Valor Pago'            , '@E 999,999,999.99' , 2})
-    aAdd(aCpoInfo, {'Valor Comissão'        , '@E 999,999,999.99' , 2})
-    aAdd(aCpoInfo, {'Juros'                 , '@E 999,999,999.99' , 2})
-    aAdd(aCpoInfo, {'Data Pagamento'        , '@D' , 1})
-    aAdd(aCpoInfo, {'Código Marketplace'    , '@!' , 1})
-    aAdd(aCpoInfo, {'Status'                , '@!' , 1})
-    aAdd(aCpoInfo, {'Baixado'               , '@!' , 1})
-    aAdd(aCpoInfo, {'Liquidado'             , '@!' , 1})
-
-    aAdd(aCpoData, {'TMP_OK'        , 'C' , 01, 0})
-    aAdd(aCpoData, {'TMP_CANAL'     , 'C' , 10, 0})
-    aAdd(aCpoData, {'TMP_IDCONC'    , 'C' , 06, 0})
-    aAdd(aCpoData, {'TMP_CLIENT'    , 'C' , 06, 0})
-    aAdd(aCpoData, {'TMP_LOJA'      , 'C' , 02, 0})
-    aAdd(aCpoData, {'TMP_NOME'      , 'C' , 30, 0})
-    aAdd(aCpoData, {'TMP_TITULO'    , 'C' , 15, 0})
-    aAdd(aCpoData, {'TMP_VALOR'     , 'N' , 14, 2})
-    aAdd(aCpoData, {'TMP_VALPAG'    , 'N' , 14, 2})
-    aAdd(aCpoData, {'TMP_VALCOM'    , 'N' , 14, 2})
-    aAdd(aCpoData, {'TMP_VALJUR'    , 'N' , 14, 2})
-    aAdd(aCpoData, {'TMP_DTPGT'     , 'D' , 08, 0})
-    aAdd(aCpoData, {'TMP_CODMAR'    , 'C' , 30, 0})
-    aAdd(aCpoData, {'TMP_STATUS'    , 'C' , 01, 0})
-    aAdd(aCpoData, {'TMP_BAIXA'     , 'C' , 01, 0})
-    aAdd(aCpoData, {'TMP_LIQUID'    , 'C' , 01, 0})
-
-    For nI := 1 To Len(aCpoData)
-
-        If(aCpoData[nI][1] <> 'TMP_OK' .AND. aCpoData[nI][1] <> 'TMP_STATUS' .AND. aCpoData[nI][1] <> 'TMP_BAIXA' .AND. aCpoData[nI][1] <> 'TMP_LIQUID') 
-
-            aAdd(aCampos, FwBrwColumn():New())
-
-            aCampos[Len(aCampos)]:SetData( &('{||' + aCpoData[nI,1] + '}') )
-            aCampos[Len(aCampos)]:SetTitle(aCpoInfo[nI,1])
-            aCampos[Len(aCampos)]:SetPicture(aCpoInfo[nI,2])
-            aCampos[Len(aCampos)]:SetSize(aCpoData[nI,3])
-            aCampos[Len(aCampos)]:SetDecimal(aCpoData[nI,4])
-            aCampos[Len(aCampos)]:SetAlign(aCpoInfo[nI,3])
-
-        EndIf
-
-    Next nI    
-
-    oTable:SetFields(aCpoData)
-
-    oTable:Create()
-
-    aCarrega = U_M0604B(cCod,cCanal)
-
-    If Len(aCarrega) > 0
-
-        For nX := 1 To Len(aCarrega)
-
-            DbSelectArea('TRB3')
-
-            RecLock('TRB3', .T.)
-
-                TRB3->TMP_CANAL    := cCanal
-                TRB3->TMP_IDCONC   := cCod
-                TRB3->TMP_CLIENT   := aCarrega[nX,1]
-                TRB3->TMP_LOJA     := aCarrega[nX,2]
-                TRB3->TMP_NOME     := aCarrega[nX,3]
-                TRB3->TMP_TITULO   := aCarrega[nX,4]
-                TRB3->TMP_VALOR    := aCarrega[nX,5]
-                TRB3->TMP_VALPAG   := aCarrega[nX,6]
-                TRB3->TMP_VALCOM   := aCarrega[nX,7]
-                TRB3->TMP_VALJUR   := aCarrega[nX,8]
-                TRB3->TMP_DTPGT    := STOD(aCarrega[nX,9])
-                TRB3->TMP_CODMAR   := aCarrega[nX,10]
-                TRB3->TMP_STATUS   := aCarrega[nX,11]
-                TRB3->TMP_BAIXA    := aCarrega[nX,12]
-                TRB3->TMP_LIQUID   := aCarrega[nX,13]
-
-            TRB3->(MsUnlock())
-        
-        Next nX
-
-        TRB3->(DbGoTop())
-
-    EndIf
+    Aviso( "Resolução de títulos", "A conciliação foi finalizada " + cConcId + " na Koncili", { "Sim"} , 1)
 
 Return
 
-Static Function MenuDef()
-    Local aRot := {}
-
-    ADD Option aRot Title 'Resolver'  Action 'FwMsgRun(,{ || U_M0604C(TRB3->TMP_CANAL,TRB3->TMP_CODMAR), CloseBrowse() }, "Enviando resolução dos títulos selecionados para Koncili", "Aguarda...")' Operation 1 Access 0
-    ADD Option aRot Title 'Visualizar' Action 'FwMsgRun(,{ || U_M0603N(TRB3->TMP_CANAL,TRB3->TMP_CODMAR) }, "Processando dos títulos selecionados", "Aguarda...")' Operation 2 Access 0
-
-Return(aRot)
-
-User Function M0604B(cCod,cCanal)
+User Function M0604B(cCod,cCanal,aCarrega)
     Local nX, nZ
     Local aTitulos    := {}
     Local nValPag   := 0.00
     Local nValLiq   := 0.00
     Local nValJur   := 0.00
 
-    aMovBan := {}
-
     If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
         For nZ := 1 To Len(aNaoRes)
             if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod) .AND. aNaoRes[nZ,16]
-                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14]})
+                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14],aNaoRes[nZ,17]})
                 nX := Len(aTitulos)
                 nValPag := 0.00
                 nValLiq := 0.00
                 nValJur := 0.00
-                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur)
+                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur,aTitulos[nX,15])
                 aTitulos[nX,6] += nValPag
                 aTitulos[nX,7] += nValLiq
                 aTitulos[nX,8] += nValJur
             EndIf
         Next nZ
+    
     EndIf
 
-Return(aTitulos)
+    aCarrega := aClone(aTitulos)
+
+Return
 
 User Function M0604C(cCanal,cCod)
     Local aItens := {}
     Local aAux   := {}
-    Local nX, nY, nZ, nW
+    Local nX, nY, nZ, nW, nA
     Local cIds   := ""
     Local nTotal := 0
     Local nLimit := 100
-    Local nVezes := 0
     Local nRecno := 0
     Local nPosMkt 
 
-    TRB3->(dbGoTop())
-
-    While !TRB3->(Eof())
-        If !Empty(TRB3->TMP_OK)
-            U_M0604D(cCanal,Alltrim(TRB3->TMP_CODMAR),@aItens)
+    For nA := 1 To Len(aCarrega)
+        If aCarrega[nA,6] > 0
+            U_M0604D(cCanal,aCarrega[nA,10],@aItens)
         EndIf
-        TRB3->(dbSkip())
-    EndDo
+    Next nA
 
     nTotal := Len(aItens)
-    nVezes := Ceiling(nTotal/nLimit)
 
-    For nY := 1 to nVezes
-        For nX := 1 To nTotal
-            cIds += Alltrim(Str(aItens[nX,1])) + Iif(nTotal != nX .AND. nX != nLimit,",","")
-            If nTotal == nX .OR. nX == nLimit
-                cIds := "[" + cIds + "]"
-                U_M0604E(cIds)
-                cIds := ""
-            EndIf
-        Next nX
-    Next nY
+    For nX := 1 To nTotal
+        cIds += Alltrim(Str(aItens[nX,1])) + Iif(nX != nTotal .AnD. nX != nLimit,",","")
+        If nX == nTotal .OR. nX == nLimit
+            cIds := "[" + cIds + "]"
+            U_M0604E(cIds)
+            cIds := ""
+        EndIf
+    Next nX
 
     If Len(aItens) > 0
         For nW := 1 to Len(aItens)
@@ -259,7 +137,7 @@ User Function M0604C(cCanal,cCod)
                     RecLock("ZZC",.T.)
                         ZZC->ZZC_FILIAL := "02"
                         ZZC->ZZC_MARKET := cCanal
-                        ZZC->ZZC_IDCONC := cCod
+                        ZZC->ZZC_IDCONC := cConcId
                         ZZC->ZZC_CLIENT := aCarrega[nPosMkt,1]
                         ZZC->ZZC_LOJA   := aCarrega[nPosMkt,2]
                         ZZC->ZZC_NOMCLI := aCarrega[nPosMkt,3]
@@ -276,8 +154,17 @@ User Function M0604C(cCanal,cCod)
         Next nZ
     EndIf
 
-    // Atualiza telas
-    U_M0604G(aAux)
+    If Len(aSemTit) > 0
+        nTotal := Len(aSemTit)
+        For nY := 1 To nTotal
+            cIds += Alltrim(Str(aSemTit[nY,5])) + Iif(nY != nTotal .AnD. nY != nLimit,",","")
+            If nY == nTotal .OR. nY == nLimit
+                cIds := "[" + cIds + "]"
+                U_M0604E(cIds)
+                cIds := ""
+            EndIf
+        Next nY
+    EndIf
 
 Return
 
@@ -311,8 +198,18 @@ User Function M0604D(cCanal,cOrder,aItens)
         EndIf
         If Empty(cParser)
             For nX := 1 To Len(oJson['elements'])
-                cId    := oJson['elements'][nX]['id']
-                AADD( aItens, { cId, cOrder } )
+                cId     := oJson['elements'][nX]['id']
+                cIdConc := oJson['elements'][nX]['conciliationId']
+                If ValType(cIdConc) == "N"
+                    cIdConc := Alltrim(Str(cIdConc))
+                Else
+                    cIdConc := ""
+                EndIf
+                If !Empty(cIdConc)
+                    If cConcId == cIdConc
+                        AADD( aItens, { cId, cOrder } )
+                    EndIf
+                EndIf
             Next nX
         EndIf
     EndIF
@@ -373,33 +270,3 @@ User Function M0604F(cOrder)
     (cAlias)->(dbCloseArea())    
 
 Return(nRecno)
-
-User Function M0604G(aAux)
-    Local nX, nY
-    Local nPosField
-    Local nPosCarr
-    Local nValor
-
-    For nX := 1 to Len(aAux)
-        For nY := 1 To Len(aNaoRes)
-            If Alltrim(aNaoRes[nY,10]) == Alltrim(aAux[nX,1])
-                nValor := 0
-                aNaoRes[nY,16] := .F.
-                nPosCarr := 0
-                nPosCarr := aScan( aCarrega, {|x| AllTrim(x[10]) == Alltrim(aAux[nX,1]) } )
-                If nPosCarr > 0
-                    nValor += aCarrega[nPosCarr,6]
-                EndIf
-                nPosField := 0
-                nPosField := aScan( aBaixa, {|x| AllTrim(x[1]) == Alltrim(aNaoRes[nY,15]) } )
-                If nPosField > 0
-                    aBaixa[nPosField,8] += nValor
-                    aBaixa[nPosField,9] -= nValor
-                    TRB->TMP_TOTRE += nValor
-                    TRB->TMP_TOTAR -= nValor
-                EndIf
-            EndIf
-        Next nY
-    Next nX
-
-Return
