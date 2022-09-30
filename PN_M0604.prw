@@ -48,6 +48,8 @@ User Function M0604(cCod,cCanal)
         FwMsgRun(,{ || U_M0604C(cCanal,cCod) }, "Enviando resolução dos títulos selecionados para Koncili", "Aguarda...")
     EndIf
 
+    FwMsgRun(,{ || U_M0604G(cCanal,dDtIni,dDtFim,cConcId) }, "Finalizando resolução dos títulos para Koncili", "Aguarda...")
+
     RestArea(aArea)
 
     Aviso( "Resolução de títulos", "A conciliação foi finalizada " + cConcId + " na Koncili", { "Sim"} , 1)
@@ -89,11 +91,12 @@ User Function M0604C(cCanal,cCod)
     Local cIds   := ""
     Local nTotal := 0
     Local nLimit := 100
+    Local nLimTot:= nLimit
     Local nRecno := 0
     Local nPosMkt 
 
     For nA := 1 To Len(aCarrega)
-        If aCarrega[nA,6] > 0
+        If aCarrega[nA,6] != 0
             U_M0604D(cCanal,aCarrega[nA,10],@aItens)
         EndIf
     Next nA
@@ -101,11 +104,12 @@ User Function M0604C(cCanal,cCod)
     nTotal := Len(aItens)
 
     For nX := 1 To nTotal
-        cIds += Alltrim(Str(aItens[nX,1])) + Iif(nX != nTotal .AnD. nX != nLimit,",","")
-        If nX == nTotal .OR. nX == nLimit
+        cIds += Alltrim(Str(aItens[nX,1])) + Iif(nX != nTotal .AnD. nX != nLimTot,",","")
+        If nX == nTotal .OR. nX == nLimTot
             cIds := "[" + cIds + "]"
             U_M0604E(cIds)
             cIds := ""
+            nLimTot += nLimit
         EndIf
     Next nX
 
@@ -270,3 +274,105 @@ User Function M0604F(cOrder)
     (cAlias)->(dbCloseArea())    
 
 Return(nRecno)
+
+User Function M0604G(cCanal,dDtIni,dDtFim,cConcId)
+    Local aResolve  := {}
+    Local cIds      := ""
+    Local nX
+
+    U_M0604H(cCanal,dDtIni,dDtFim,cConcId,@aResolve)
+
+    If Len(aResolve) > 0
+        nTotal := Len(aResolve)
+        For nX := 1 To nTotal
+            cIds += Alltrim(Str(aResolve[nX,1])) + Iif(nX != nTotal,",","")
+            If nX == nTotal
+                cIds := "[" + cIds + "]"
+                U_M0604E(cIds)
+            EndIf
+        Next nX
+    EndIf
+
+Return
+
+/*/{Protheus.doc} M0604H
+    Função responsável por buscar pedidos ainda não resolvidos na Koncili
+    @type  Function
+    @author Pono Tecnologia
+    @since 30/09/2022
+    @version 12.1.33+
+    /*/
+User Function M0604H(cCanal,dDtIni,dDtFim,cConcId,aResolve)
+    Local cUrl
+    Local cPath
+    Local cAuth
+    Local aHeader   := {}
+    Local oRest
+    Local oJson
+    Local cParser
+    Local nX
+    Local nId       := 0
+    Local lTitulo   := .F.
+    Local nOffSet   := 1
+    Local cDtIni    := Substr(DTOS(dDtIni),1,4) + "-" + Substr(DTOS(dDtIni),5,2) + "-" + Substr(DTOS(dDtIni),7,2)
+    Local cDtFim    := Substr(DTOS(dDtFim),1,4) + "-" + Substr(DTOS(dDtFim),5,2) + "-" + Substr(DTOS(dDtFim),7,2)
+
+
+    cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
+    cPath := "/externalapi/orderextract/unresolveds?offset="+ Alltrim(Str(nOffSet)) + "&initDate=" + cDtIni + "&endDate=" + cDtFim + "&conciliationId=" + cConcId
+    cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
+
+    Aadd(aHeader,'Accept: application/json')
+    Aadd(aHeader,'Content-Type: application/json')
+    AADD(aHeader, "gumgaToken: " + cAuth)
+
+    oRest := FWRest():new(cUrl)
+    oRest:setPath(cPath)
+    oJson := JsonObject():new()
+
+    If oRest:Get(aHeader)
+        If ValType(oRest:ORESPONSEH) == "O"
+            cJson := oRest:GetResult()
+            cJson := StrTran(cJson,"ï»¿","")
+            cParser  := oJson:FromJson(cJson)
+        EndIf
+        If Empty(cParser)
+            For nX := 1 To Len(oJson['content'])
+                lTitulo := .F.
+                cOrder  := oJson['content'][nX]['orderCode']
+                nId     := oJson['content'][nX]['id']
+                lTitulo := U_M0604I(cOrder)
+                If !lTitulo
+                    AADD( aResolve, { nId } )
+                EndIf
+            Next nX
+        EndIf
+    EndIf
+
+    freeObj(oJson)
+
+Return
+
+User Function M0604I(cWareId)
+    Local cAlias := GetNextAlias()
+    Local cQuery
+    Local lRet   := .F.
+
+    cQuery := "SELECT * "
+    cQuery += "FROM " + RetSqlName("SE1") + " "
+    cQuery += "WHERE D_E_L_E_T_ = ' ' "
+    cQuery += "AND E1_FILIAL = '02'
+    cQuery += "AND E1_IDWARE = '" + Alltrim(cWareId) + "'
+
+    MPSysOpenQuery( cQuery, cAlias )
+
+    DBSelectArea(cAlias)
+    (cAlias)->(dbGoTop())
+    
+    If !Empty((cAlias)->E1_IDWARE)
+        lRet := .T.
+    EndIf
+    
+    (cAlias)->(dbCloseArea())
+
+Return(lRet)

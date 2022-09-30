@@ -204,7 +204,7 @@ User Function M0602B()
     aNaoRes := {}
 
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
-        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal,cIdConc)
+        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal,cIdConc,.F.)
 
         For nY := 1 to nVezes
             cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
@@ -283,11 +283,14 @@ User Function M0602B()
 
     For nSoma := 1 To Len(aBaixa)
         aBaixa[nSoma,6] := aBaixa[nSoma,8] + aBaixa[nSoma,9]
+        If aBaixa[nSoma,9] == 0
+            aBaixa[nSoma,7] := "C"
+        EndIf
     Next nSoma
 
 Return(aBaixa)
 
-User Function M0602C(nLimit,nOffSet,nCount,nVezes,cCod,cCanal,cIdConc)
+User Function M0602C(nLimit,nOffSet,nCount,nVezes,cCod,cCanal,cIdConc,lResolvido)
     Local cUrl
     Local cPath
     Local cAuth
@@ -300,9 +303,16 @@ User Function M0602C(nLimit,nOffSet,nCount,nVezes,cCod,cCanal,cIdConc)
     
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
         cUrl  := SuperGetMV("MV_YKONURL",.F.,"")
-        cPath := "/externalapi/orderextract/unresolveds?initDate=" + dDtIni + "&endDate=" + dDtFim
-        If !Empty(Alltrim(cIdConc))
-            cPath += "&conciliationId=" + Alltrim(cIdConc)
+        If lResolvido
+            cPath := "/externalapi/orderextract/concilieds?initDate=" + dDtIni + "&endDate=" + dDtFim
+            If !Empty(Alltrim(cIdConc))
+                cPath += "&conciliationId=" + Alltrim(cIdConc)
+            EndIf
+        Else
+            cPath := "/externalapi/orderextract/unresolveds?initDate=" + dDtIni + "&endDate=" + dDtFim
+            If !Empty(Alltrim(cIdConc))
+                cPath += "&conciliationId=" + Alltrim(cIdConc)
+            EndIf
         EndIf
         cAuth := SuperGetMV("MV_YKONAUT",.F.,"205004666L1E1747261718188C165394971818800O1.I")
 
@@ -425,7 +435,7 @@ User Function M0602H(aBaixa)
     Local cIdConc   := Alltrim(MV_PAR04)
 
     If !Empty(Alltrim(DTOS(MV_PAR01))) .AND. !Empty(Alltrim(DTOS(MV_PAR02)))
-        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal,cIdConc)
+        U_M0602C(@nLimit,@nOffSet,@nCount,@nVezes,@cCod,@cCanal,cIdConc,.T.)
 
         For nY := 1 to nVezes
             cUrl  := SuperGetMV("MV_YKONURL",.F.,"")

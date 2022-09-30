@@ -179,9 +179,11 @@ Return
 Static Function MenuDef()
     Local aRot := {}
 
-    ADD Option aRot Title 'Processar'    Action 'FwMsgRun(,{ || U_M0603G() }, "Processando dos títulos selecionados", "Aguarde...")' Operation 6 Access 0
-    ADD Option aRot Title 'Visualizar'   Action 'FwMsgRun(,{ || U_M0603N(TRB2->TMP_CANAL,TRB2->TMP_CODMAR,TRB2->TMP_PARCEL) }, "Processando dos títulos selecionados", "Aguarde...")' Operation 2 Access 0
-    ADD Option aRot Title 'Cancelamento' Action 'FwMsgRun(,{ || U_M0603X() }, "Processando cancelamento e liquidação dos títulos selecionados", "Aguarde...")' Operation 7 Access 0
+    ADD Option aRot Title 'Processar'     Action 'FwMsgRun(,{ || U_M0603G() }, "Processando dos títulos selecionados", "Aguarde...")' Operation 6 Access 0
+    ADD Option aRot Title 'Visualizar'    Action 'FwMsgRun(,{ || U_M0603N(TRB2->TMP_CANAL,TRB2->TMP_CODMAR,TRB2->TMP_PARCEL) }, "Processando dos títulos selecionados", "Aguarde...")' Operation 2 Access 0
+    ADD Option aRot Title 'Cancelamento'  Action 'FwMsgRun(,{ || U_M0603X() }, "Processando cancelamento e liquidação dos títulos selecionados", "Aguarde...")' Operation 7 Access 0
+    ADD Option aRot Title 'Mov. Bancário' Action 'FwMsgRun(,{ || U_MVCMBAN(TRB2->TMP_CANAL) }, "Processando visualização dos movimentos bancários da conciliação.", "Aguarde...")' Operation 8 Access 0
+    ADD Option aRot Title 'Sem Títulos'   Action 'FwMsgRun(,{ || U_MVCESTI(TRB2->TMP_CANAL) }, "Processando visualização dos eventos sem títulos.", "Aguarde...")' Operation 9 Access 0
 
 Return(aRot)
 
@@ -513,7 +515,7 @@ User Function M0603G()
                 EndIf
                 lLiquida := .F.
                 lBaixado := .F.
-            TRB2->(MsUnLock())
+            MsUnLock()
             TRB2->(dbSkip())
         End Transaction
     EndDo
@@ -1562,30 +1564,46 @@ Return
 
 User Function XGETPAR(cParcela,cParLiq)
 
-    If cParcela == "1"
+    If Alltrim(cParcela) == "1"
         cParLiq := "A"
-    ElseIf cParcela == "2"
+    ElseIf Alltrim(cParcela) == "2"
         cParLiq := "B"
-    ElseIf cParcela == "3"
+    ElseIf Alltrim(cParcela) == "3"
         cParLiq := "C"
-    ElseIf cParcela == "4"
+    ElseIf Alltrim(cParcela) == "4"
         cParLiq := "D"
-    ElseIf cParcela == "5"
+    ElseIf Alltrim(cParcela) == "5"
         cParLiq := "E"
-    ElseIf cParcela == "6"
+    ElseIf Alltrim(cParcela) == "6"
         cParLiq := "F"
-    ElseIf cParcela == "7"
+    ElseIf Alltrim(cParcela) == "7"
         cParLiq := "G"
-    ElseIf cParcela == "8"
+    ElseIf Alltrim(cParcela) == "8"
         cParLiq := "H"
-    ElseIf cParcela == "9"
+    ElseIf Alltrim(cParcela) == "9"
         cParLiq := "I"
-    ElseIf cParcela == "10"
+    ElseIf Alltrim(cParcela) == "10"
         cParLiq := "J"
-    ElseIf cParcela == "11"
+    ElseIf Alltrim(cParcela) == "11"
         cParLiq := "K"
-    ElseIf cParcela == "12"
+    ElseIf Alltrim(cParcela) == "12"
         cParLiq := "L"
+    ElseIf Alltrim(cParcela) == "13"
+        cParLiq := "M"
+    ElseIf Alltrim(cParcela) == "14"
+        cParLiq := "N"
+    ElseIf Alltrim(cParcela) == "15"
+        cParLiq := "O"
+    ElseIf Alltrim(cParcela) == "16"
+        cParLiq := "P"
+    ElseIf Alltrim(cParcela) == "17"
+        cParLiq := "Q"
+    ElseIf Alltrim(cParcela) == "18"
+        cParLiq := "R"
+    ElseIf Alltrim(cParcela) == "19"
+        cParLiq := "S"
+    ElseIf Alltrim(cParcela) == "20"
+        cParLiq := "T"
     EndIf
 
 Return
@@ -1611,3 +1629,111 @@ User Function MVCE1SAL(cWareId)
     EndIf
 
 Return(nSaldo)
+
+/*/{Protheus.doc} MVCMBAN
+    Função responsável pela montagem da tela para visualizar os movimentos bancários da conciliação.
+    @type  Function
+    @author Pono Tecnologia
+    @since 29/09/2022
+    @version 12.1.33+
+    /*/
+User Function MVCMBAN(cCanal)
+    Local lRet      := .T.
+    Local aFields   := {"Canal" , "Valor" , "Natureza" , "Histórico" , "Tipo", "ID"}
+    Local aButtons  := {}
+    Local aItens    := {}
+    Local nX
+
+        If Len(aMovBan) > 0
+            For nX := 1 to Len(aMovBan)
+                AADD(aItens, { aMovBan[nX,6], aMovBan[nX,1], aMovBan[nX,2], aMovBan[nX,3], aMovBan[nX,4], aMovBan[nX,5] } )
+            Next nX
+        EndIf
+
+        If Len(aItens) > 0
+            oDlg := FWDialogModal():New()
+
+            oDlg:SetEscClose(.T.)
+            oDlg:SetTitle("Conciliação de títulos")
+            
+            //Seta a largura e altura da janela em pixel
+            oDlg:setSize(250, 550)
+
+            oDlg:CreateDialog()
+            oContainer := TPanel():New( ,,, oDlg:getPanelMain() )
+            oContainer:Align := CONTROL_ALIGN_ALLCLIENT
+
+            cLine := "{aItens[oListBox:nAT][6],aItens[oListBox:nAT][1],aItens[oListBox:nAT][2],aItens[oListBox:nAT][3],aItens[oListBox:nAT][4],aItens[oListBox:nAT][5] } "
+            bLine := &( "{ || " + cLine + " }" )
+
+            oListBox:=TWBrowse():New( 001,001,550,200,,aFields,,oContainer,,,,,,,,,,,,.F.,,.T.,,.F.,,,)
+            oListBox:SetArray(aItens)
+            oListBox:bLDblClick := { || aItens[oListBox:nAt,1] := !aItens[oListBox:nAt,1] }
+            oListBox:bLine := bLine
+            oListBox:bLDblClick := { || U_M0603S() }
+
+            oDlg:AddButton( 'Fechar'	,{|| oDlg:DeActivate() }, 'Fechar' , , .T., .F., .T., )
+
+            oDlg:addButtons(aButtons)
+
+            oDlg:Activate()
+        Else
+            lRet := .F.
+            Help(,, "Conciliação de Títulos Koncili",, "Não existem movimentos bancários para essa conciliação !!!", 1, 0,,,,,, {"Selecione outra conciliação."})
+        EndIf
+
+Return
+
+/*/{Protheus.doc} MVCESTI
+    Função responsável pela montagem da tela para visualizar eventos sem títulos da conciliação.
+    @type  Function
+    @author Pono Tecnologia
+    @since 29/09/2022
+    @version 12.1.33+
+    /*/
+User Function MVCESTI(cCanal)
+    Local lRet      := .T.
+    Local aFields   := {"Canal" , "Data" , "Pedido" , "Marketplace" , "Id Conciliação", "Id Koncili"}
+    Local aButtons  := {}
+    Local aItens    := {}
+    Local nX
+
+        If Len(aSemTit) > 0
+            For nX := 1 to Len(aSemTit)
+                AADD(aItens, { cCanal, DTOC(STOD(aSemTit[nX,1])), aSemTit[nX,2], aSemTit[nX,3], aSemTit[nX,4], aSemTit[nX,5] } )
+            Next nX
+        EndIf
+
+        If Len(aItens) > 0
+            oDlg := FWDialogModal():New()
+
+            oDlg:SetEscClose(.T.)
+            oDlg:SetTitle("Conciliação de títulos")
+            
+            //Seta a largura e altura da janela em pixel
+            oDlg:setSize(250, 550)
+
+            oDlg:CreateDialog()
+            oContainer := TPanel():New( ,,, oDlg:getPanelMain() )
+            oContainer:Align := CONTROL_ALIGN_ALLCLIENT
+
+            cLine := "{aItens[oListBox:nAT][6],aItens[oListBox:nAT][1],aItens[oListBox:nAT][2],aItens[oListBox:nAT][3],aItens[oListBox:nAT][4],aItens[oListBox:nAT][5] } "
+            bLine := &( "{ || " + cLine + " }" )
+
+            oListBox:=TWBrowse():New( 001,001,550,200,,aFields,,oContainer,,,,,,,,,,,,.F.,,.T.,,.F.,,,)
+            oListBox:SetArray(aItens)
+            oListBox:bLDblClick := { || aItens[oListBox:nAt,1] := !aItens[oListBox:nAt,1] }
+            oListBox:bLine := bLine
+            oListBox:bLDblClick := { || U_M0603S() }
+
+            oDlg:AddButton( 'Fechar'	,{|| oDlg:DeActivate() }, 'Fechar' , , .T., .F., .T., )
+
+            oDlg:addButtons(aButtons)
+
+            oDlg:Activate()
+        Else
+            lRet := .F.
+            Help(,, "Conciliação de Títulos Koncili",, "Não existem eventos sem títulos nessa conciliação !!!", 1, 0,,,,,, {"Selecione outra conciliação."})
+        EndIf
+
+Return

@@ -6,7 +6,7 @@
 Static cTitulo := "Compensação entre carteiras Koncili"
 Static cAlias  := "ZZA"
 
-/*/{Protheus.doc} M0604
+/*/{Protheus.doc} M0605
     Função para montagem da tela de compensação entre carteiras de títulos da Koncili
     @type  Function
     @author Pono Tecnologia
@@ -106,6 +106,15 @@ Static Function ViewDef()
 
 Return oView
 
+/*/{Protheus.doc} M0605A
+    Função responsável pela montagem da tela de compensaçao de títulos entre carterias customizada.
+    @type Function
+    @author Pono Tecnologia
+    @since 22/07/2022
+    @version 12.1.33
+    @param cMarket, Character, Código do marketplace
+    @param cMktId , Character, Id do marketplace
+    /*/
 User Function M0605A(cMarket,cMktId)
     Local oDlg
     Local aSize   := {}
@@ -123,6 +132,7 @@ User Function M0605A(cMarket,cMktId)
     Local TRB2     := ""
     Local nOpcao   := 3
     Local aFornece := {}
+    Local cMsg     := ""
     Local aCampos := {  {"TMP_OK"       ,"C", 2,0},;
                         {"TMP_TIPO"     ,"C", 1,0},;
                         {"TMP_TITULO"   ,"C", 9,0},;
@@ -217,12 +227,19 @@ User Function M0605A(cMarket,cMktId)
     @021,005 Say "Total Selecionado :" FONT oDlg:oFont PIXEL OF oPanel2
     @021,060 Say oSelecP VAR nSelecP 	Picture "@E 999,999,999,999,999.99" FONT oDlg:oFont PIXEL OF oPanel2
     @021,200 Say oSelecR VAR nSelecR 	Picture "@E 999,999,999,999,999.99" FONT oDlg:oFont PIXEL OF oPanel2
-    // Panel
 
-    ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg,{|| U_M0605I("TRB2",dDtIni,dDtFim,nLimite,cFornece,cLojFor,nOpcao),oDlg:End()},{|| oDlg:End()},,aBut450)
+    ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg,{|| IIF(U_M0605I("TRB2",dDtIni,dDtFim,nLimite,nOpcao,@cMsg),oDlg:End(),Aviso("Atenção!",cMsg,{"Ok"})) },{|| oDlg:End()},,aBut450)
     
 Return
 
+
+/*/{Protheus.doc} M0605B
+    Função responsável pela montegem dos arrays que serão utilizados na tela, informações dos títulos a pagar e receber.
+    @type  Function
+    @author Pono Tecnologia
+    @since 22/07/2022
+    @version 12.1.33
+    /*/
 User Function M0605B(aCampos,dDtIni,dDtFim,cMarket,aFornece,nTotalP,nTotalR)
     Local nX
 
@@ -283,7 +300,7 @@ Return
     @since 08/08/2022
     @version 12.1.33
     /*/
-User Function M0605C(cAlias,dDtIni,dDtFim,nLimite,cFornece,cLojFor,nOpcao)
+User Function M0605C(cAlias,dDtIni,dDtFim,nLimite,nOpcao)
     Local aArea             := GetArea()
     Local lRet              := .T.
     Local nI, nX
@@ -300,6 +317,8 @@ User Function M0605C(cAlias,dDtIni,dDtFim,nLimite,cFornece,cLojFor,nOpcao)
         If !Empty((cAlias)->TMP_OK)
             If (cAlias)->TMP_TIPO == "P"
                 AAdd(aSE2Pag, {xFilial("SE2")+(cAlias)->TMP_PREFIX+(cAlias)->TMP_TITULO+(cAlias)->TMP_PARCEL+(cAlias)->TMP_TPTIT+(cAlias)->TMP_CLIFOR+(cAlias)->TMP_LOJA})
+                cFornece := (cAlias)->TMP_CLIFOR
+                cLojFor  := (cAlias)->TMP_LOJA
             ElseIf (cAlias)->TMP_TIPO == "R"
                 AADD(aCliente, { (cAlias)->TMP_CLIFOR,(cAlias)->TMP_LOJA })
                 AAdd(aSE1Rec, {xFilial("SE1")+(cAlias)->TMP_PREFIX+(cAlias)->TMP_TITULO+(cAlias)->TMP_PARCEL+(cAlias)->TMP_TPTIT})
@@ -347,6 +366,13 @@ User Function M0605C(cAlias,dDtIni,dDtFim,nLimite,cFornece,cLojFor,nOpcao)
 
 Return(lRet)
 
+/*/{Protheus.doc} M0605D
+    Função responsável pela validação da marcação e pela atualização das variáveis de totais da tela na rotina de compensação.
+    @type  Function
+    @author Pono Tecnologia
+    @since 22/07/2022
+    @version 12.1.33+
+    /*/
 User Function M0605D(cAlias,cMarca,lInverte,nSelecP,nSelecR,oSelecP,oSelecR)
 
     RecLock(cAlias,.F.)
@@ -377,9 +403,9 @@ Return
 /*/{Protheus.doc} M0605E
     Função que busca os títulos a pagar para compensação.
     @type  Function
-    @author user
     @author Pono Tecnologia
     @since 08/08/2022
+    @version 12.1.33
     /*/
 User Function M0605E(aCarrega,dDtIni,dDtFim,aFornece,nTotalP)
     Local cAlias := GetNextAlias()
@@ -415,9 +441,9 @@ Return
 /*/{Protheus.doc} M0605F
     Função que busca os títulos a receber para compensação.
     @type  Function
-    @author user
     @author Pono Tecnologia
     @since 08/08/2022
+    @version 12.1.33
     /*/
 User Function M0605F(aCarrega,dDtIni,dDtFim,cMarket,nTotalR)
     Local cAlias   := GetNextAlias()
@@ -448,6 +474,13 @@ User Function M0605F(aCarrega,dDtIni,dDtFim,cMarket,nTotalR)
 
 Return(aCarrega)
 
+/*/{Protheus.doc} M0605G
+    Função responsável pela atualização dos totalizadores conforme os títulos selecionados.
+    @type  Function
+    @author Pono Tecnologia
+    @since 08/08/2022
+    @version 12.1.33
+    /*/
 User Function M0605G(cAlias,cMarca,lInverte,nSelecP,nSelecR,oSelecP,oSelecR)
 
     (cAlias)->(dbGoTop())
@@ -507,21 +540,103 @@ User Function M0605H(aErros)
 
 Return
 
-User Function M0605I(cAlias,dDtIni,dDtFim,nLimite,cFornece,cLojFor,nOpcao)
+/*/{Protheus.doc} M0605I
+    Função que valida se apenas um título a pagar foi selecionado e chama a rotina de compensação.
+    @type  Function
+    @author Pono Tecnologia
+    @since 29/08/2022
+    @version 12.1.33
+    @param cAlias , Character, Álias do arquivo temporário utilizado
+    @param dDtIni , Date     , Data do início para ser considerado no filtro de títulos a compensar
+    @param dDtFim , Date     , Data do fim para ser considerado no filtro de títulos a compensar
+    @param nLimite, Numeric  , Valor limite para compensação
+    @param nOpcao , Numeric  , Opção : 3 - Compensar ou 5 - Cancelar compensação
+    /*/
+User Function M0605I(cAlias,dDtIni,dDtFim,nLimite,nOpcao,cMsg)
+    Local lRet      := .T.
+    Local lPagar    := .F.
+    Local lContinua := .T.
+    Local cTitPcom  := ""
+    Local lPagSel   := .F.
+    Local lRecSel   := .F.
+    
+    (cAlias)->(dbGoTop())
 
-    FwMsgRun(,{ || U_M0605C(cAlias,dDtIni,dDtFim,nLimite,cFornece,cLojFor,nOpcao) }, "Compensação de títulos", 'Processando dados...')
+    While (cAlias)->(!Eof())
+        If !Empty((cAlias)->TMP_OK)
+            If (cAlias)->TMP_TIPO == "P" .AND. !lPagar
+                lPagar := .T.
+                cTitPcom := (cAlias)->TMP_TITULO
+            ElseIf (cAlias)->TMP_TIPO != "R"
+                lContinua := .F.
+                cMsg := "Apenas um registro a pagar pode ser selecionado por vez."
+            EndIf
+        EndIf
+    (cAlias)->(DbSkip())
+    Enddo
 
-Return
+    (cAlias)->(dbGoTop())
 
-/*/{Protheus.doc} nomeFunction
+    If nOpcao == 5
+        While (cAlias)->(!Eof())
+            If !Empty((cAlias)->TMP_OK)
+                If (cAlias)->TMP_TIPO == "R" .AnD. (cAlias)->TMP_TITPG <> cTitPcom
+                    lContinua := .F.
+                    cMsg := "Apenas títulos a receber compensados com o título " + cTitPcom + " podem ser selecionados."
+                EndIf
+            EndIf
+        (cAlias)->(DbSkip())
+        Enddo
+    EndIf
+
+    (cAlias)->(dbGoTop())
+    
+    If lContinua
+        While (cAlias)->(!Eof())
+            If !Empty((cAlias)->TMP_OK)
+                If (cAlias)->TMP_TIPO == "P"
+                    lPagSel := .T.
+                ElseIf (cAlias)->TMP_TIPO == "R"
+                    lRecSel := .T.
+                EndIf
+            EndIf
+        (cAlias)->(DbSkip())
+        Enddo
+
+        If !lPagSel
+            lContinua := .F.
+            cMsg := "Pelo menos um título a pagar deve ser selecionado."
+        EndIf
+
+        If !lRecSel
+            lContinua := .F.
+            cMsg := "Pelo menos um título a receber deve ser selecionado."
+        EndIf
+
+        If !lPagSel .AND. !lRecSel
+            lContinua := .F.
+            cMsg := "Nenhum título foi selecionado."
+        EndIf
+
+        (cAlias)->(dbGoTop())
+    EndIf
+    
+    If lContinua    
+        FwMsgRun(,{ || U_M0605C(cAlias,dDtIni,dDtFim,nLimite,nOpcao) }, "Compensação de títulos", 'Processando dados...')
+    Else
+        lRet := .F.
+    EndIf
+
+Return(lRet)
+
+/*/{Protheus.doc} M0605J
     Função responsável pelo cancelamento da compensação de títulos da Koncili
     @type  Function
     @author Pono Tecnologia
     @since 29/08/2022
     @version 12.1.33
-    @param cMarket , Character, Código do marketplace
-    @param cFornece, Character, Código do fornecedor
-    @param cLojFor , Character, Loja do fornecedor
+    @param cMarket, Character, Código do marketplace
+    @param cMktId , Character, Id do marketplace
     /*/
 User Function M0605J(cMarket,cMktId)
     Local oDlg
@@ -540,6 +655,7 @@ User Function M0605J(cMarket,cMktId)
     Local TRB3     := ""
     Local nOpcao   := 5
     Local aFornece := {}
+    Local cMsg     := ""
     Local aCampos := {  {"TMP_OK"       ,"C", 2,0},;
                         {"TMP_TIPO"     ,"C", 1,0},;
                         {"TMP_TITULO"   ,"C", 9,0},;
@@ -558,17 +674,18 @@ User Function M0605J(cMarket,cMktId)
                         {"TMP_DESCRE"   ,"N",14,2},;
                         {"TMP_CLIFOR"   ,"C", 6,0},;
                         {"TMP_LOJA"	    ,"C", 2,0},;
-                        {"TMP_NOME"     ,"C",30,0}}
+                        {"TMP_NOME"     ,"C",30,0},;
+                        {"TMP_TITPG"    ,"C",09,0}}
 
     Local aCpoBro	:= {{"TMP_OK"	    ,, " "                  ,"  "},;
                         {"TMP_TIPO"     ,, "Carteira"           ,"!"},;
-                        {"TMP_TITULO"	,, "Número Título"      ,"@X"},;
+                        {"TMP_TITULO"	,, "Numero Titulo"      ,"@X"},;
                         {"TMP_PREFIX"	,, "Prefixo"            ,"@X"},;
                         {"TMP_PARCEL"	,, "Parcela"            ,"@X"},;
                         {"TMP_TPTIT"	,, "Tipo do Título"     ,"@X"},;
                         {"TMP_VLPAG"	,, "Valor Pagar"        ,"@E 999,999,999.99"},;
                         {"TMP_VLREC"	,, "Valor Receber"      ,"@E 999,999,999.99"},;
-                        {"TMP_EMISSA"	,, "Data EmissÆo"       ,"@X"},;
+                        {"TMP_EMISSA"	,, "Data Emissao"       ,"@X"},;
                         {"TMP_VENCTO"	,, "Data Vencimento"    ,"@X"},;
                         {"TMP_SALDO"	,, "Saldo Titulo"       ,"@E 9,999,999,999.99"},;
                         {"TMP_JUROS"	,, "Juros"              ,"@E 9,999,999,999.99"},;
@@ -578,7 +695,8 @@ User Function M0605J(cMarket,cMktId)
                         {"TMP_DESCRE"	,, "Decrescimos"        ,"@E 9,999,999,999.99"},;
                         {"TMP_CLIFOR"	,, "Cli/For"            ,"@X"},;
                         {"TMP_LOJA"	    ,, "Loja"               ,"@X"},;
-                        {"TMP_NOME"		,, "Nome"               ,"@X"}}
+                        {"TMP_NOME"		,, "Nome"               ,"@X"},;
+                        {"TMP_TITPG"	,, "Titulo a Pagar"     ,"@X"}}
 
     Pergunte("M0605",.T.)
 
@@ -602,21 +720,20 @@ User Function M0605J(cMarket,cMktId)
         Return
     EndIf
 
-
     DbSelectArea("TRB3")
     TRB3->(DbGoTop())
 
     DEFINE FONT oFnt NAME "Arial" SIZE 12,14 BOLD
 
-    aSize := MSADVSIZE()	
+    aSize := MSADVSIZE()
 
     DEFINE MSDIALOG oDlg TITLE "Cancelamento de Compensação Entre Carteiras" From aSize[7],0 To aSize[6],aSize[5] OF oMainWnd PIXEL
     oDlg:lMaximized := .T.
 
     oMark := MsSelect():New("TRB3","TMP_OK","",aCpoBro,@lInverte,@cMarca,{50,oDlg:nLeft,oDlg:nBottom,oDlg:nRight})
     oMark:bMark := {| | U_M0605D("TRB3",cMarca,lInverte,@nSelecP,@NSelecR,oSelecP,oSelecR)}
-    oMark:oBrowse:lhasMark = .t.
-    oMark:oBrowse:lCanAllmark := .t.
+    oMark:oBrowse:lhasMark = .T.
+    oMark:oBrowse:lCanAllmark := .T.
                                 
     oMark:oBrowse:bAllMark := { || U_M0605G("TRB3",cMarca,lInverte,@nSelecP,@NSelecR,oSelecP,oSelecR),oMark:oBrowse:Refresh(.T.)}
     oMark:oBrowse:Align := CONTROL_ALIGN_ALLCLIENT
@@ -636,7 +753,7 @@ User Function M0605J(cMarket,cMktId)
     @021,060 Say oSelecP VAR nSelecP 	Picture "@E 999,999,999,999,999.99" FONT oDlg:oFont PIXEL OF oPanel2
     @021,200 Say oSelecR VAR nSelecR 	Picture "@E 999,999,999,999,999.99" FONT oDlg:oFont PIXEL OF oPanel2
 
-    ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg,{|| U_M0605I("TRB3",dDtIni,dDtFim,nLimite,cFornece,cLojFor,nOpcao),oDlg:End()},{|| oDlg:End()},,aBut450)
+    ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg,{|| IIF(U_M0605I("TRB3",dDtIni,dDtFim,nLimite,nOpcao,@cMsg),oDlg:End(),Aviso("Atenção!",cMsg,{"Ok"}))},{|| oDlg:End()},,aBut450)
 
 Return
 
@@ -690,6 +807,7 @@ User Function M0605K(aCampos,dDtIni,dDtFim,cMarket,aFornece,nTotalP,nTotalR)
                 TRB3->TMP_CLIFOR    := aCarrega[nX,13]
                 TRB3->TMP_LOJA      := aCarrega[nX,14]
                 TRB3->TMP_NOME      := aCarrega[nX,15]
+                TRB3->TMP_TITPG     := aCarrega[nX,19]
 
             TRB3->(MsUnlock())
         
@@ -711,36 +829,48 @@ User Function M0605L(aCarrega,dDtIni,dDtFim,cMarket,nTotalP,nTotalR,aFornece)
     Local cAlias   := GetNextAlias()
     Local cQuery
     Local nX
+    Local cTitPag
 
-    For nX := 1 To Len(aFornece)
-        cQuery := "SELECT * "
-        cQuery += "FROM " + RetSqlName("SE1") + " "
-        cQuery += "WHERE D_E_L_E_T_ = ' ' "
-        cQuery += "AND E1_FILIAL = '" + xFilial("SE1") + "' "
-        cQuery += "AND E1_NUMLIQ != '' "
-        cQuery += "AND E1_STATUS = 'B' "
-        cQuery += "AND E1_EMISSAO >= '" + DTOS(dDtIni) + "' AND E1_EMISSAO <= '" + DTOS(dDtFim) + "' "
-        cQuery += "AND E1_CODMKT = '" + cMarket + "' "
-        cQuery += "AND E1_RESOLKO = 'S'"
+    cQuery := "SELECT * "
+    cQuery += "FROM " + RetSqlName("SE1") + " "
+    cQuery += "WHERE D_E_L_E_T_ = ' ' "
+    cQuery += "AND E1_FILIAL = '" + xFilial("SE1") + "' "
+    cQuery += "AND E1_NUMLIQ != '' "
+    cQuery += "AND E1_STATUS = 'B' "
+    cQuery += "AND E1_EMISSAO >= '" + DTOS(dDtIni) + "' AND E1_EMISSAO <= '" + DTOS(dDtFim) + "' "
+    cQuery += "AND E1_CODMKT = '" + cMarket + "' "
+    cQuery += "AND E1_RESOLKO = 'S'"
 
-        MPSysOpenQuery( cQuery, cAlias )
+    MPSysOpenQuery( cQuery, cAlias )
 
-        DBSelectArea(cAlias)
-        (cAlias)->(dbGoTop())
-        
-        While !(cAlias)->((Eof()))
-            AADD( aCarrega, { "R", (cAlias)->E1_NUM, 0, (cAlias)->E1_SALDO, (cAlias)->E1_EMISSAO, (cAlias)->E1_VENCTO, (cAlias)->E1_SALDO, (cAlias)->E1_JUROS, (cAlias)->E1_MULTA, (cAlias)->E1_DESCONT, (cAlias)->E1_ACRESC, (cAlias)->E1_DECRESC, (cAlias)->E1_CLIENTE, (cAlias)->E1_LOJA, (cAlias)->E1_NOMCLI, (cAlias)->E1_PREFIXO, (cAlias)->E1_PARCELA, (cAlias)->E1_TIPO } )
-            U_M0605M((cAlias)->E1_IDENTEE,aFornece[nX,1],aFornece[nX,2],@aCarrega,nTotalP)
+    DBSelectArea(cAlias)
+    (cAlias)->(dbGoTop())
+    
+    While !(cAlias)->((Eof()))
+        If !Empty(Alltrim((cAlias)->E1_NUM))
+            cTitPag := U_M0605O((cAlias)->E1_IDENTEE,(cAlias)->E1_CLIENTE,(cAlias)->E1_LOJA)
+            AADD( aCarrega, { "R", (cAlias)->E1_NUM, 0, (cAlias)->E1_VALOR, (cAlias)->E1_EMISSAO, (cAlias)->E1_VENCTO, (cAlias)->E1_SALDO, (cAlias)->E1_JUROS, (cAlias)->E1_MULTA, (cAlias)->E1_DESCONT, (cAlias)->E1_ACRESC, (cAlias)->E1_DECRESC, (cAlias)->E1_CLIENTE, (cAlias)->E1_LOJA, (cAlias)->E1_NOMCLI, (cAlias)->E1_PREFIXO, (cAlias)->E1_PARCELA, (cAlias)->E1_TIPO, cTitPag } )
+            For nX := 1 To Len(aFornece)
+                U_M0605M((cAlias)->E1_IDENTEE,aFornece[nX,1],aFornece[nX,2],@aCarrega,nTotalP)
+            Next nX
             nTotalR += (cAlias)->E1_SALDO
-            (cAlias)->(dbSkip())
-        EndDo
-        
-        aSort(aCarrega,,,{|x,y|x[1] < y[1]})
-        
-        (cAlias)->(dbCloseArea())    
-    Next nX
+        EndIf
+        (cAlias)->(dbSkip())
+    EndDo
+    
+    aSort(aCarrega,,,{|x,y|x[1] < y[1]})
+    
+    (cAlias)->(dbCloseArea())    
+
 Return
 
+/*/{Protheus.doc} M0605M
+    Função responsável se os títulos selecionados já foram compensados.
+    @type  Function
+    @author Pono Tecnologia
+    @since 29/08/2022
+    @version 12.1.33
+    /*/
 User Function M0605M(cComp,cFornece,cLojFor,aCarrega,nTotalP)
     Local cAlias   := GetNextAlias()
     Local cQuery
@@ -772,8 +902,8 @@ User Function M0605M(cComp,cFornece,cLojFor,aCarrega,nTotalP)
     If Len(cAlias) > 0
         nPos := 0
         nPos := aScan( aCarrega, {|x| AllTrim(x[2]) == Alltrim((cAlias)->E2_NUM) } )
-        If nPos == 0
-            AADD( aCarrega, { "P", (cAlias)->E2_NUM, (cAlias)->E2_SALDO, 0, (cAlias)->E2_EMISSAO, (cAlias)->E2_VENCTO, (cAlias)->E2_SALDO, (cAlias)->E2_JUROS, (cAlias)->E2_MULTA, (cAlias)->E2_DESCONT, (cAlias)->E2_ACRESC, (cAlias)->E2_DECRESC, (cAlias)->E2_FORNECE, (cAlias)->E2_LOJA, (cAlias)->E2_NOMFOR, (cAlias)->E2_PREFIXO, (cAlias)->E2_PARCELA, (cAlias)->E2_TIPO } )
+        If nPos == 0 .AND. !Empty(Alltrim((cAlias)->E2_NUM))
+            AADD( aCarrega, { "P", (cAlias)->E2_NUM, (cAlias)->E2_SALDO, 0, (cAlias)->E2_EMISSAO, (cAlias)->E2_VENCTO, (cAlias)->E2_SALDO, (cAlias)->E2_JUROS, (cAlias)->E2_MULTA, (cAlias)->E2_DESCONT, (cAlias)->E2_ACRESC, (cAlias)->E2_DECRESC, (cAlias)->E2_FORNECE, (cAlias)->E2_LOJA, (cAlias)->E2_NOMFOR, (cAlias)->E2_PREFIXO, (cAlias)->E2_PARCELA, (cAlias)->E2_TIPO, "" } )
             nTotalP += (cAlias)->E2_SALDO
         EndIf
     EndIf
@@ -801,6 +931,7 @@ User Function M0605N(cMktId)
     cQuery += "WHERE D_E_L_E_T_ = ' ' "
     cQuery += "AND ZZE_FILIAL = '" + xFilial("ZZE") + "' "
     cQuery += "AND ZZE_MKTID = '" + cMktId + "' "
+    cQuery += "AND ZZE_ATIVO = 'S' "
 
     MPSysOpenQuery( cQuery, cAlias )
 
@@ -812,6 +943,72 @@ User Function M0605N(cMktId)
         (cAlias)->(dbSkip())
     EndDo
     
-    (cAlias)->(dbCloseArea())    
+    (cAlias)->(dbCloseArea())
 
 Return(aFornece)
+
+/*/{Protheus.doc} M0605O
+    Função responsável por retornar o número do título utilizado na compensação.
+    @type  Function
+    @author Pono Tecnologia
+    @since 29/09/2022
+    @version 12.1.33+
+    /*/
+User Function M0605O(cComp,cCliente,cLojCli)
+    Local cAlias   := GetNextAlias()
+    Local cQuery
+    Local cTitPag
+
+    cQuery := "SELECT * "
+    cQuery += "FROM " + RetSqlName("SE5") + " E5 "
+    cQuery += "WHERE E5.D_E_L_E_T_ = ' ' "
+    cQuery += "AND E5_FILIAL = '" + xFilial("SE5") + "' "
+    cQuery += "AND E5_IDENTEE = '" + cComp + "' "
+
+    MPSysOpenQuery( cQuery, cAlias )
+
+    DBSelectArea(cAlias)
+    (cAlias)->(dbGoTop())
+    
+    While !(cAlias)->(Eof())
+        If (cAlias)->E5_CLIFOR <> cCliente .AND. (cAlias)->E5_LOJA <> cLojCli
+            cTitPag := (cAlias)->E5_NUMERO
+        EndIf
+    (cAlias)->(dbSkip())
+    EndDo
+    
+    (cAlias)->(dbCloseArea())    
+
+Return(cTitPag)
+
+/*/{Protheus.doc} M0605P
+    Função responsável pela validação da marcação e pela atualização das variáveis de totais da tela na rotina de cancelamento de compensação.
+    @type  Function
+    @author Pono Tecnologia
+    @since 29/09/2022
+    @version 12.1.33+
+    /*/
+User Function M0605P(cAlias,cMarca,lInverte,nSelecP,nSelecR,oSelecP,oSelecR)
+
+    RecLock(cAlias,.F.)
+        If Marked("TMP_OK")
+            (cAlias)->TMP_OK := cMarca
+            If (cAlias)->TMP_VLREC != 0
+                nSelecR += (cAlias)->TMP_VLREC
+            Else
+                nSelecP += (cAlias)->TMP_VLPAG
+            EndIf
+        Else
+            (cAlias)->TMP_OK := " "
+            If (cAlias)->TMP_VLREC != 0
+                nSelecR -= (cAlias)->TMP_VLREC
+            Else
+                nSelecP -= (cAlias)->TMP_VLPAG
+            EndIf
+        End
+    MsUnlock()
+
+    oSelecP:Refresh()
+    oSelecR:Refresh()
+
+Return
