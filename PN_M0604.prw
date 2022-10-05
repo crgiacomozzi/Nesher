@@ -18,7 +18,6 @@ User Function M0604(cCod,cCanal)
     Private oTable      := Nil
     Private oMarkBrw4   := Nil
     Private aRotina     := MenuDef()
-    Private aMovBan     := {}
     Private dDtIni
     Private dDtFim
     Private dDtBaixa

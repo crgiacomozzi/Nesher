@@ -343,17 +343,20 @@ User Function M0605C(cAlias,dDtIni,dDtFim,nLimite,nOpcao)
     
         MSExecAuto({|x,y,z| Fina450(x,y,z)}, nil , aAutoCab , nOpcao )
         If lMsErroAuto
+            cMsg := ""
             lRet := .F.
-            cMsg := "Problema : " + CRLF
+            cMsg := "Cliente : " + aCliente[nX,1] + " - " + aCliente[nX,2] + CRLF
+            cMsg += "Problema : " + CRLF
             aErro := GetAutoGRLog()
             For nI := 1 To Len(aErro)
                 cMsg += aErro[nI] + CRLF
             Next nI
+            AADD( aErros, { cMsg } )
         EndIf
     Next nX
 
-    If Len(aErro) > 0
-        U_M0605H(aErro)
+    If Len(aErros) > 0
+        U_M0605H(aErros)
     Else 
         If nOpcao == 3
             Aviso( "Compensação entre carteiras", "Compensação entre carteiras realizada com sucesso", { "Sim"} , 1)
@@ -528,9 +531,8 @@ User Function M0605H(aErros)
     Local nX
 
     For nX := 1 To Len(aErros)
-        cData := SubStr(aErros[nX,1],9,2) + "/" + SubStr(aErros[nX,1],6,2) + "/" + SubStr(aErros[nX,1],1,4)
-        cMsg += "Problema : " + aErros[nX,3] + CRLF
-        cMsg += + CRLF
+        cMsg += "Problema : " + aErros[nX,1] + CRLF
+        cMsg += " " + CRLF
     Next nX
 
     DEFINE MSDIALOG oDlgMens TITLE cTitulo FROM 000, 000  TO 300, 600 COLORS 0, 16777215 PIXEL

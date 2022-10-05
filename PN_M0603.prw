@@ -312,7 +312,7 @@ User Function M0603D(cOrder,cCanal,nValPag,nValLiq,nValJur,cParcela)
                         EndIf
                     EndIf
                 ElseIf aOcoPro[nX,1] == "M"
-                    AADD(aMovBan, { aOcoKon[nX,2], aOcoPro[nX,5], aOcoPro[nX,6], aOcoPro[nX,7], aOcoPro[nX,8], cCanal } )
+                    AADD(aMovBan, { aOcoKon[nX,2], aOcoPro[nX,5], aOcoPro[nX,6], aOcoPro[nX,7], aOcoPro[nX,8], cCanal, cOrder } )
                 EndIf
             Next nY
         Next nX
@@ -470,7 +470,7 @@ User Function M0603G()
                     If TRB2->TMP_VALPAG < 0
                         U_M0603F(cCanal,cTpOco,@aOcoPro)
                         If Len(aOcoPro) > 0
-                            AADD(aMovBan, { TRB2->TMP_VALPAG, aOcoPro[nX,5], Alltrim(aOcoPro[nX,6]) + " " + TRB2->TMP_CODMAR, aOcoPro[nX,7], aOcoPro[nX,8], TRB2->TMP_TITULO } )
+                            AADD(aMovBan, { TRB2->TMP_VALPAG, aOcoPro[nX,5], Alltrim(aOcoPro[nX,6]) + " " + TRB2->TMP_CODMAR, aOcoPro[nX,7], aOcoPro[nX,8], TRB2->TMP_TITULO, TRB2->TMP_CODMAR  } )
                         EndIf
                     EndIf
                 EndIf
@@ -1554,7 +1554,7 @@ User Function M0603Z(cOder,cCod,cCanal,nId)
             U_M0603F(cCanal,aOcoKon[nX,1],@aOcoPro)
             For nY := 1 to Len(aOcoPro)
                 If aOcoPro[nX,1] == "M"
-                    AADD(aMovBan, { aOcoKon[nX,2], aOcoPro[nX,5], aOcoPro[nX,6], aOcoPro[nX,7], aOcoPro[nX,8], cCanal } )
+                    AADD(aMovBan, { aOcoKon[nX,2], aOcoPro[nX,5], aOcoPro[nX,6], aOcoPro[nX,7], aOcoPro[nX,8], cCanal, cOder } )
                 EndIf
             Next nY
         Next nX
@@ -1646,7 +1646,8 @@ User Function MVCMBAN(cCanal)
 
         If Len(aMovBan) > 0
             For nX := 1 to Len(aMovBan)
-                AADD(aItens, { aMovBan[nX,6], aMovBan[nX,1], aMovBan[nX,2], aMovBan[nX,3], aMovBan[nX,4], aMovBan[nX,5] } )
+                AADD(aItens, { aMovBan[nX,6], Transform(aMovBan[nX,1],'@E 999,999,999.99'), aMovBan[nX,2], aMovBan[nX,3], aMovBan[nX,4], aMovBan[nX,5] } )
+                
             Next nX
         EndIf
 
