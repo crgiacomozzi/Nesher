@@ -329,7 +329,6 @@ User Function A0601G(aItens)
                 ZZA->(RecLock("ZZA",.T.))
                     ZZA->ZZA_FILIAL := xFilial("ZZA")
                     ZZA->ZZA_MKTID  := Alltrim(aItens[nX,3])
-                    ZZA->ZZA_BLOQ   := "1"
                 ZZA->(dbCloseArea())
                 End Transaction
             EndIf

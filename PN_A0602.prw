@@ -184,6 +184,10 @@ User Function A0602B(cFilSC5,cPedSC5,cOrderId)
     
     cDate    := SubStr(aPed[1,2],1,4) + "-" + SubStr(aPed[1,2],5,2) + "-" + SubStr(aPed[1,2],7,2)
     cDtEnv   := U_A0602G(aPed[1,3],aPed[1,4],aPed[1,6],aPed[1,7])
+    If Empty(Alltrim(cDtEnv))
+        Aviso("Atenção!","Nota fiscal referente ao pedido de venda não encontrada.",{"Ok"})
+        Return
+    EndIf
     cDtNf    := SubStr(cDtEnv,1,4) + "-" + SubStr(cDtEnv,5,2) + "-" + SubStr(cDtEnv,7,2)
     aCliente := U_A0602H(aPed[1,6],aPed[1,7])
     jJson["orderCode"]                  := aPed[1,1]
@@ -212,7 +216,7 @@ User Function A0602B(cFilSC5,cPedSC5,cOrderId)
         aPgto[1]['method']  := aPgPre[1,1]
         aPgto[1]['date']    := cDate + "T00:00:00.420+0000"
         aPgto[1]['value']   := nTotal + aPed[1,5]
-        aPgto[1]['installmentQuantity']  := aPgPre[1,2]
+        aPgto[1]['installmentQuantity']  := 1 //aPgPre[1,2] - Alterado para sempre considerar 1 parcela apenas
     jJson["items"] := JsonObject():New()
     jJson["items"] := aItjson
     jJson["payments"] := JsonObject():New()
@@ -368,7 +372,7 @@ User Function A0602F(cFilSC5,cPedSC5,cOrder,cMarket,cPedInt)
         oRest:setPath(cPath)
 
         If oRest:Delete(aHeader)
-            Aviso("Atenção!","Alteração realizada com sucesso!!!.",{"Ok"})
+            Aviso("Atenção!","Exclusão realizada com sucesso!!!.",{"Ok"})
             ConOut("DELETE", oRest:GetResult())
             dbSelectArea("SC5")
             SC5->(DbSetOrder(1))

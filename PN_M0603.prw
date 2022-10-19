@@ -311,8 +311,8 @@ User Function M0603D(cOrder,cCanal,nValPag,nValLiq,nValJur,cParcela)
                             nValJur -= aOcoKon[nX,2]
                         EndIf
                     EndIf
-                ElseIf aOcoPro[nX,1] == "M"
-                    AADD(aMovBan, { aOcoKon[nX,2], aOcoPro[nX,5], aOcoPro[nX,6], aOcoPro[nX,7], aOcoPro[nX,8], cCanal, cOrder } )
+                ElseIf aOcoPro[nY,1] == "M"
+                    AADD(aMovBan, { aOcoKon[nX,2], aOcoPro[nY,5], aOcoPro[nY,6], aOcoPro[nY,7], aOcoPro[nY,8], cCanal, cOrder } )
                 EndIf
             Next nY
         Next nX
@@ -436,6 +436,8 @@ User Function M0603G()
     Local aAux    := {}
     Local cTpOco  := "VALOR_NEGATIVO"
     Local aOcoPro := {}
+    Local cAvisoTit := "Processamento de títulos Koncili"
+    Local cAvisoMsg := "A data base do sistema é diferente da data da baixa dos títulos na Koncili. Deseja continuar mesmo assim ?"
 
     TRB2->(dbGoTop())
 
@@ -443,8 +445,10 @@ User Function M0603G()
     cCanal  := Alltrim(TRB2->TMP_CANAL)
 
     If dDtBaixa != dDataBase
-        Help(,,"Processamento de títulos Koncili",,"A data base de sistema deve ser a mesma que a data da baixa dos títulos.",1,0,,,,,,{"Altere a data base do sistema."})
-        Return
+        nOpc := Aviso( cAvisoTit, cAvisoMsg, { "Sim", "Não"} , 2)
+        If nOpc == 2
+            Return
+        EndIf
     EndIf
 
     While !TRB2->(Eof())
