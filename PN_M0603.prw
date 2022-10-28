@@ -429,7 +429,7 @@ User Function M0603G()
     Local aImprime := {}
     Local aErros   := {}
     Local cMsg
-    Local nX, nY
+    Local nX, nY, nW
     Local nOpcao   := 3
     Local cStatus
     Local nPosArr
@@ -474,7 +474,11 @@ User Function M0603G()
                     If TRB2->TMP_VALPAG < 0
                         U_M0603F(cCanal,cTpOco,@aOcoPro)
                         If Len(aOcoPro) > 0
-                            AADD(aMovBan, { TRB2->TMP_VALPAG, aOcoPro[nX,5], Alltrim(aOcoPro[nX,6]) + " " + TRB2->TMP_CODMAR, aOcoPro[nX,7], aOcoPro[nX,8], TRB2->TMP_TITULO, TRB2->TMP_CODMAR  } )
+                            nValPag := 0
+                            For nW := 1 to Len(aOcoPro)
+                                nValPag := TRB2->TMP_VALPAG * (-1)
+                                AADD(aMovBan, { nValPag, aOcoPro[nW,5], Alltrim(aOcoPro[nW,6]) + " " + Alltrim(TRB2->TMP_CODMAR), aOcoPro[nW,7], aOcoPro[nW,8], Alltrim(TRB2->TMP_TITULO), Alltrim(TRB2->TMP_CODMAR)  } )
+                            Next nW
                         EndIf
                     EndIf
                 EndIf

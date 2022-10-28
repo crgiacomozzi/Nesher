@@ -15,6 +15,7 @@ User Function M0602()
     Local nOpc          := 0
     Local cAvisoTit     := "Processamento de títulos Koncili"
     Local cAvisoMsg     := "Confirma a data base do sistema para execução do processamento dos títulos ?"
+    Local dDtBxTit
     Private lRpc	    := Type("cFilAnt") == "U"
     Private aCpoInfo    := {}
     Private aCampos     := {}
@@ -25,6 +26,7 @@ User Function M0602()
     Private aNaoRes     := {}
     Private aBaixa      := {}
     Private aSemTit     := {}
+    Private lCondDtbs   := .F.
 
     If lRpc
 		RPCSetType(3)
@@ -44,6 +46,17 @@ User Function M0602()
     EndIf
 
     Pergunte("M0602",.T.)
+
+    dDtBxTit  := MV_PAR03
+
+    If dDtBxTit != dDataBase
+        nOpc := Aviso( "Processamento de títulos Koncili", "A data base do sistema é diferente da data da baixa dos títulos na Koncili. Deseja continuar mesmo assim ?", { "Sim", "Não"} , 2)
+        If nOpc == 1
+            lCondDtbs := .T.
+        ElseIf nOpc == 2
+            Return
+        EndIf
+    EndIf
 
     FwMsgRun(,{ || U_M0602A() }, cCadastro, 'Carregando dados...')
 
@@ -248,7 +261,11 @@ User Function M0602B()
                         cData   := StrTran(SubStr(oJson['content'][nX]['releasedDate'],1,10),"-","")
                         nId     := oJson['content'][nX]['id']
                         cParcela:= Alltrim(Str(oJson['content'][nX]['plotNumber']))
-                        aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida,cData)
+                        If lCondDtbs
+                            aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida,DTOS(dDataBase))
+                        Else 
+                            aTitulo := U_M0602D(cOrder,@lBaixado,@lLiquida,cData)
+                        EndIf
                         cStatus := U_M0602E(lBaixado,lLiquida)
                         nPosField := 0
                         nPosField := aScan( aBaixa, {|x| AllTrim(x[1]) == Alltrim(cConcId) } )
