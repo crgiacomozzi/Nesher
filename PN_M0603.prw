@@ -93,6 +93,7 @@ User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
     aAdd(aCpoInfo, {'Valor Pago'            , '@E 999,999,999.99' , 2})
     aAdd(aCpoInfo, {'Valor Comissão'        , '@E 999,999,999.99' , 2})
     aAdd(aCpoInfo, {'Juros'                 , '@E 999,999,999.99' , 2})
+    aAdd(aCpoInfo, {'Desconto'              , '@E 999,999,999.99' , 2})
     aAdd(aCpoInfo, {'Data Pagamento'        , '@D' , 1})
     aAdd(aCpoInfo, {'Código Marketplace'    , '@!' , 1})
     aAdd(aCpoInfo, {'Status'                , '@!' , 1})
@@ -111,6 +112,7 @@ User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
     aAdd(aCpoData, {'TMP_VALPAG'    , 'N' , 14, 2})
     aAdd(aCpoData, {'TMP_VALCOM'    , 'N' , 14, 2})
     aAdd(aCpoData, {'TMP_VALJUR'    , 'N' , 14, 2})
+    aAdd(aCpoData, {'TMP_VALDES'    , 'N' , 14, 2})
     aAdd(aCpoData, {'TMP_DTPGT'     , 'D' , 08, 0})
     aAdd(aCpoData, {'TMP_CODMAR'    , 'C' , 30, 0})
     aAdd(aCpoData, {'TMP_STATUS'    , 'C' , 01, 0})
@@ -159,6 +161,7 @@ User Function M0603A(cCod,cCanal,dDtIni,dDtFim)
                 TRB2->TMP_VALPAG   := aCarrega[nX,6]
                 TRB2->TMP_VALCOM   := aCarrega[nX,7]
                 TRB2->TMP_VALJUR   := aCarrega[nX,8]
+                TRB2->TMP_VALDES   := aCarrega[nX,16]
                 TRB2->TMP_DTPGT    := STOD(aCarrega[nX,9])
                 TRB2->TMP_CODMAR   := aCarrega[nX,10]
                 TRB2->TMP_STATUS   := aCarrega[nX,11]
@@ -204,21 +207,24 @@ User Function M0603B(cCod,cCanal,dDtIni,dDtFim)
     Local nValPag   := 0.00
     Local nValLiq   := 0.00
     Local nValJur   := 0.00
+    Local nValDes   := 0.00
 
     aMovBan := {}
 
     If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
         For nZ := 1 To Len(aNaoRes)
             if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod)
-                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14],aNaoRes[nZ,17]})
+                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14],aNaoRes[nZ,17],aNaoRes[nZ,18]})
                 nX := Len(aTitulos)
                 nValPag := 0.00
                 nValLiq := 0.00
                 nValJur := 0.00
-                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur,aTitulos[nX,15])
+                nValDes := 0.00
+                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur,@nValDes,aTitulos[nX,15])
                 aTitulos[nX,6] += nValPag
                 aTitulos[nX,7] += nValLiq
                 aTitulos[nX,8] += nValJur
+                aTitulos[nX,16] += nValDes
             EndIf
         Next nZ
 
@@ -259,7 +265,7 @@ User Function M0603C(cWareId)
 
 Return(aRet)
 
-User Function M0603D(cOrder,cCanal,nValPag,nValLiq,nValJur,cParcela)
+User Function M0603D(cOrder,cCanal,nValPag,nValLiq,nValJur,nValDes,cParcela)
     Local aOcoKon := {}
     Local aOcoPro := {}
     Local nX, nY
@@ -289,6 +295,12 @@ User Function M0603D(cOrder,cCanal,nValPag,nValLiq,nValJur,cParcela)
                             nValJur += aOcoKon[nX,2]
                         ElseIf aOcoPro[nY,3] == "D"
                             nValJur -= aOcoKon[nX,2]
+                        EndIf
+                    ElseIf aOcoPro[nY,4] == "D"
+                        If aOcoPro[nY,3] == "S"
+                            nValDes += aOcoKon[nX,2]
+                        ElseIf aOcoPro[nY,3] == "D"
+                            nValDes -= aOcoKon[nX,2]
                         EndIf
                     EndIf
                 ElseIf aOcoPro[nY,1] == "L"
@@ -464,7 +476,7 @@ User Function M0603G()
                         EndIf
                     EndIf
                     If TRB2->TMP_BAIXA == "N" .AND. TRB2->TMP_VALPAG > 0
-                        lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcao)
+                        lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcao,TRB2->TMP_VALDES)
                         If !lBaixado
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
                         Else
@@ -740,7 +752,7 @@ Return(lRet)
     @param nJuros   , Numeric  , valores reembolsados pelo marketplace
     @return Logical, retorna false caso título já tenha sido baixado anteriormente.
     /*/
-User Function M0603I(cCliente,cLoja,cPrefixo,cNumero,cParcela,cTipo,nValPago,nJuros,cCodMkp,cMsg,nOpcao)
+User Function M0603I(cCliente,cLoja,cPrefixo,cNumero,cParcela,cTipo,nValPago,nJuros,cCodMkp,cMsg,nOpcao,nDesc)
     Local aArea             := GetArea()
     Local lBaixa            := .T.
     Local aTitBaixa         := {}
@@ -783,6 +795,7 @@ User Function M0603I(cCliente,cLoja,cPrefixo,cNumero,cParcela,cTipo,nValPago,nJu
     Aadd(aTitBaixa, {"AUTAGENCIA"  , SA6->A6_AGENCIA  , nil})
     Aadd(aTitBaixa, {"AUTCONTA"    , SA6->A6_NUMCON   , nil})
     Aadd(aTitBaixa, {"AUTJUROS"    , 0                , nil,.T.})
+    Aadd(aTitBaixa, {"AUTDESCONT"  , ABS(nDesc)       , nil})
     Aadd(aTitBaixa, {"AUTMULTA"    , ABS(nJuros)      , nil})
     Aadd(aTitBaixa, {"AUTVALREC"   , ABS(nValPago)    , nil})
     Aadd(aTitBaixa, {"AUTMOTBX"    , cMotBai          , nil})
@@ -1402,7 +1415,7 @@ User Function M0603X()
                         EndIf
                     EndIf
                     If TRB2->TMP_BAIXA == "S"
-                        lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcBx)
+                        lBaixado := U_M0603I(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cParcela,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALJUR,TRB2->TMP_CODMAR,@cMsg,nOpcBx,TRB2->TMP_VALDES)
                         If !lBaixado
                             AADD( aErros, { DTOC(TRB2->TMP_DTPGT),TRB2->TMP_CANAL,cMsg } )
                         Else

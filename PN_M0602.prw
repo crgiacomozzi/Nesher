@@ -282,7 +282,7 @@ User Function M0602B()
                                 nPosField2 := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(cOrder) } )
                                 If nPosField2 == 0
                                     cStatus := U_M0602I(lBaixado,lLiquida)
-                                    AADD( aNaoRes, { aTitulo[1,1],aTitulo[1,2],aTitulo[1,3],aTitulo[1,4],aTitulo[1,5],0,0,0,cData,cOrder,cStatus, Iif(lBaixado,"S","N"), Iif(lLiquida,"S","N"),cMarket,cConcId,.T.,cParcela } )
+                                    AADD( aNaoRes, { aTitulo[1,1],aTitulo[1,2],aTitulo[1,3],aTitulo[1,4],aTitulo[1,5],0,0,0,cData,cOrder,cStatus, Iif(lBaixado,"S","N"), Iif(lLiquida,"S","N"),cMarket,cConcId,.T.,cParcela,0 } )
                                 EndIf
                             Else 
                                 AADD( aSemTit, { cData,cOrder,cMarket,cConcId,nId } )

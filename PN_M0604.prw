@@ -23,6 +23,7 @@ User Function M0604(cCod,cCanal)
     Private dDtBaixa
     Private cConcId
     Private aCarrega    := {}
+    Private aMovBan     := {}
 
     Pergunte("M0602",.T.)
 
@@ -61,19 +62,24 @@ User Function M0604B(cCod,cCanal,aCarrega)
     Local nValPag   := 0.00
     Local nValLiq   := 0.00
     Local nValJur   := 0.00
+    Local nValDes   := 0.00
+
+    aMovBan := {}
 
     If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
         For nZ := 1 To Len(aNaoRes)
             if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod) .AND. aNaoRes[nZ,16]
-                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14],aNaoRes[nZ,17]})
+                AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14],aNaoRes[nZ,17],aNaoRes[nZ,18]})
                 nX := Len(aTitulos)
                 nValPag := 0.00
                 nValLiq := 0.00
                 nValJur := 0.00
-                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur,aTitulos[nX,15])
+                nValDes := 0.00
+                U_M0603D(aTitulos[nX,10],cCanal,@nValPag,@nValLiq,@nValJur,@nValDes,aTitulos[nX,15])
                 aTitulos[nX,6] += nValPag
                 aTitulos[nX,7] += nValLiq
                 aTitulos[nX,8] += nValJur
+                aTitulos[nX,16] += nValDes
             EndIf
         Next nZ
     
