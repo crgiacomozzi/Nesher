@@ -307,6 +307,8 @@ User Function M0605C(cAlias,dDtIni,dDtFim,nLimite,nOpcao)
     Local aErro             := {}
     Local aSE1Rec           := {}
     Local aSE2Pag           := {}
+    Local aSE1Rba           := {}
+    Local aSE2Pba           := {}
     Local aCliente          := {}
     Private lMsErroAuto     := .F.
     Private lAutoErrNoFile  := .T. 
@@ -316,18 +318,20 @@ User Function M0605C(cAlias,dDtIni,dDtFim,nLimite,nOpcao)
     While !(cAlias)->(Eof())
         If !Empty((cAlias)->TMP_OK)
             If (cAlias)->TMP_TIPO == "P"
-                AAdd(aSE2Pag, {xFilial("SE2")+(cAlias)->TMP_PREFIX+(cAlias)->TMP_TITULO+(cAlias)->TMP_PARCEL+(cAlias)->TMP_TPTIT+(cAlias)->TMP_CLIFOR+(cAlias)->TMP_LOJA})
+                AAdd(aSE2Pba, {xFilial("SE2")+(cAlias)->TMP_PREFIX+(cAlias)->TMP_TITULO+(cAlias)->TMP_PARCEL+(cAlias)->TMP_TPTIT+(cAlias)->TMP_CLIFOR+(cAlias)->TMP_LOJA})
                 cFornece := (cAlias)->TMP_CLIFOR
                 cLojFor  := (cAlias)->TMP_LOJA
             ElseIf (cAlias)->TMP_TIPO == "R"
                 AADD(aCliente, { (cAlias)->TMP_CLIFOR,(cAlias)->TMP_LOJA })
-                AAdd(aSE1Rec, {xFilial("SE1")+(cAlias)->TMP_PREFIX+(cAlias)->TMP_TITULO+(cAlias)->TMP_PARCEL+(cAlias)->TMP_TPTIT})
+                AAdd(aSE1Rba, {xFilial("SE1")+(cAlias)->TMP_PREFIX+(cAlias)->TMP_TITULO+(cAlias)->TMP_PARCEL+(cAlias)->TMP_TPTIT})
             EndIf
         EndIf
         (cAlias)->(dbSkip())
     EndDo
 
     For nX := 1 To Len(aCliente)
+        aSE1Rec := aClone(aSE1Rba)
+        aSE2Pag := aClone(aSE2Pba)
         aAutoCab := {   {"AUTDVENINI450", dDtIni          , nil},;
                         {"AUTDVENFIM450", dDtFim          , nil},;
                         {"AUTNLIM450"   , nLimite         , nil},;
@@ -423,7 +427,9 @@ User Function M0605E(aCarrega,dDtIni,dDtFim,aFornece,nTotalP)
         cQuery += "AND E2_FORNECE = '" + Alltrim(aFornece[nX,1]) + "' "
         cQuery += "AND E2_LOJA = '" + Alltrim(aFornece[nX,2]) + "' "
         cQuery += "AND E2_SALDO > 0 "
-        cQuery += "AND E2_EMISSAO >= '" + DTOS(dDtIni) + "' AND E2_EMISSAO <= '" + DTOS(dDtFim) + "'"
+        cQuery += "AND E2_EMISSAO >= '" + DTOS(dDtIni) + "' "
+        cQuery += "AND E2_EMISSAO <= '" + DTOS(dDtFim) + "' "
+        cQuery += "AND E2_TIPO = 'NF' "
 
         MPSysOpenQuery( cQuery, cAlias )
 

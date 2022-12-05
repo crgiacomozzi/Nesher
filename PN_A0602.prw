@@ -18,18 +18,12 @@ User Function A0602()
     Local oBrowse
     Local nDiaLim   := SuperGetMV("MV_YDLIMKO",.F.,60)
     Local cDtLimit  := DTOS(DaySub(dDatabase,nDiaLim))
-    Local cCondicao := "UPPER(Alltrim(SC5->C5_NOMMKT)) == 'PAGSEGURO' .AND. SC5->C5_EMISSAO >= '" + cDtLimit + "'"
-    Private lRpc    := Type("cFilAnt") == "U"
+    Local cCondicao := "SC5->C5_FILIAL == '" + xFilial("SC5") + "' .AND. 'allFront' $ SC5->C5_PN_PONT .AND. SC5->C5_EMISSAO >= '" + cDtLimit + "'"
     Private aRotina := MenuDef()
 
-    If lRpc
-		RPCSetType(3)
-		RpcSetEnv('01','02',,,,GetEnvServer(),{ })
-	Else 
-        If cFilAnt == "01"
-            Aviso("Atenção!","Operação não permitida para a MATRIZ.",{"Ok"})
-            Return
-        EndIf
+    If cFilAnt == "01"
+        Aviso("Atenção!","Operação não permitida para a MATRIZ.",{"Ok"})
+        Return
     EndIf
 
     oBrowse := FWMBrowse():New()
