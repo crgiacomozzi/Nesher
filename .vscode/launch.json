@@ -7,7 +7,7 @@
 			"name": "Depuração do idioma TOTVS",
 			"program": "${command:AskForProgramName}",
 			"cwb": "${workspaceFolder}",
-			"smartclientBin": "C:\\Totvs\\Projetos\\Nesher\\smartclient\\smartclient.exe",
+			"smartclientBin": "C:\\Totvs\\Nesher\\Smartclient\\smartclient.exe",
 			"isMultiSession": true,
 			"enableTableSync": true
 		}
@@ -31,8 +31,10 @@
 			],
 			"label": "U_M0601",
 			"description": " ()"
+		},
+		{
+			"label": "SIGAMDI"
 		}
 	],
-	"lastProgramExecuted": "SIGAMDI",
-	"lastProgramArgumens": []
+	"lastProgramExecuted": "SIGAMDI"
 }

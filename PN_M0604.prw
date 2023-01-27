@@ -63,12 +63,16 @@ User Function M0604B(cCod,cCanal,aCarrega)
     Local nValLiq   := 0.00
     Local nValJur   := 0.00
     Local nValDes   := 0.00
+    Local nSleApi:= SuperGetMV("MV_XTOFKON",.F., 0)
 
     aMovBan := {}
 
     If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
         For nZ := 1 To Len(aNaoRes)
-            if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod) .AND. aNaoRes[nZ,16]
+            If nSleApi > 0
+                Sleep(nSleApi)
+            EndIf
+            If Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod) .AND. aNaoRes[nZ,16]
                 AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14],aNaoRes[nZ,17],aNaoRes[nZ,18]})
                 nX := Len(aTitulos)
                 nValPag := 0.00
@@ -99,8 +103,12 @@ User Function M0604C(cCanal,cCod)
     Local nLimTot:= nLimit
     Local nRecno := 0
     Local nPosMkt 
+    Local nSleApi:= SuperGetMV("MV_XTOFKON",.F., 0)
 
     For nA := 1 To Len(aCarrega)
+        If nSleApi > 0
+            Sleep(nSleApi)
+        EndIf
         If aCarrega[nA,6] != 0
             U_M0604D(cCanal,aCarrega[nA,10],@aItens)
         EndIf
@@ -142,22 +150,24 @@ User Function M0604C(cCanal,cCod)
                 nPosMkt := aScan( aCarrega, {|x| AllTrim(x[10]) == Alltrim(aAux[nZ,1]) } )
                 If nPosMkt > 0
                     dbSelectArea("ZZC")
-                    ZZC->(DbSetOrder(1))
-                    RecLock("ZZC",.T.)
-                        ZZC->ZZC_FILIAL := "02"
-                        ZZC->ZZC_MARKET := cCanal
-                        ZZC->ZZC_IDCONC := cConcId
-                        ZZC->ZZC_CLIENT := aCarrega[nPosMkt,1]
-                        ZZC->ZZC_LOJA   := aCarrega[nPosMkt,2]
-                        ZZC->ZZC_NOMCLI := aCarrega[nPosMkt,3]
-                        ZZC->ZZC_TITULO := aCarrega[nPosMkt,4]
-                        ZZC->ZZC_VALOR  := aCarrega[nPosMkt,5]
-                        ZZC->ZZC_VALPAG := aCarrega[nPosMkt,6]
-                        ZZC->ZZC_VALCOM := aCarrega[nPosMkt,7]
-                        ZZC->ZZC_JUROS  := aCarrega[nPosMkt,8]
-                        ZZC->ZZC_DTPAGT := STOD(aCarrega[nPosMkt,9])
-                        ZZC->ZZC_CODMKT := aCarrega[nPosMkt,10]
-                    ZZC->(MsUnlock())
+                    ZZC->(DbSetOrder(3))
+                    If !ZZC->(dbSeek("02"+ PadR(cCanal,20," ") + cConcId + aCarrega[nPosMkt,1] + aCarrega[nPosMkt,2] + aCarrega[nPosMkt,4]))
+                        RecLock("ZZC",.T.)
+                            ZZC->ZZC_FILIAL := "02"
+                            ZZC->ZZC_MARKET := cCanal
+                            ZZC->ZZC_IDCONC := cConcId
+                            ZZC->ZZC_CLIENT := aCarrega[nPosMkt,1]
+                            ZZC->ZZC_LOJA   := aCarrega[nPosMkt,2]
+                            ZZC->ZZC_NOMCLI := aCarrega[nPosMkt,3]
+                            ZZC->ZZC_TITULO := aCarrega[nPosMkt,4]
+                            ZZC->ZZC_VALOR  := aCarrega[nPosMkt,5]
+                            ZZC->ZZC_VALPAG := aCarrega[nPosMkt,6]
+                            ZZC->ZZC_VALCOM := aCarrega[nPosMkt,7]
+                            ZZC->ZZC_JUROS  := aCarrega[nPosMkt,8]
+                            ZZC->ZZC_DTPAGT := STOD(aCarrega[nPosMkt,9])
+                            ZZC->ZZC_CODMKT := aCarrega[nPosMkt,10]
+                        ZZC->(MsUnlock())
+                    EndIf
                 EndIf
             EndIf
         Next nZ

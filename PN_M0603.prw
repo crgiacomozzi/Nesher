@@ -208,12 +208,16 @@ User Function M0603B(cCod,cCanal,dDtIni,dDtFim)
     Local nValLiq   := 0.00
     Local nValJur   := 0.00
     Local nValDes   := 0.00
+    Local nSleApi   := SuperGetMV("MV_XTOAKON",.F., 0)
 
     aMovBan := {}
 
     If !Empty(Alltrim(DTOS(dDtIni))) .AND. !Empty(Alltrim(DTOS(dDtFim)))
         For nZ := 1 To Len(aNaoRes)
-            if Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod)
+            If nSleApi > 0
+                Sleep(nSleApi)
+            EndIf
+            If Alltrim(aNaoRes[nZ,14]) == Alltrim(cCanal) .AND. Alltrim(aNaoRes[nZ,15]) == Alltrim(cCod)
                 AADD(aTitulos, {aNaoRes[nZ,1],aNaoRes[nZ,2],aNaoRes[nZ,3],aNaoRes[nZ,4],aNaoRes[nZ,5],aNaoRes[nZ,6],aNaoRes[nZ,7],aNaoRes[nZ,8],aNaoRes[nZ,9],aNaoRes[nZ,10],aNaoRes[nZ,11],aNaoRes[nZ,12],aNaoRes[nZ,13],aNaoRes[nZ,14],aNaoRes[nZ,17],aNaoRes[nZ,18]})
                 nX := Len(aTitulos)
                 nValPag := 0.00
@@ -396,6 +400,7 @@ User Function M0603E(cOrder,cCanal,aOcoKon,cParcela)
 Return
 
 User Function M0603F(cCanal,cTipo,aOcoPro)
+    Local aArea  := GetArea()
     Local cAlias := GetNextAlias()
     Local cQuery
 
@@ -417,6 +422,8 @@ User Function M0603F(cCanal,cTipo,aOcoPro)
     EndDo
     
     (cAlias)->(dbCloseArea())
+
+    RestArea(aArea)
 
 Return
 
@@ -465,8 +472,8 @@ User Function M0603G()
 
     While !TRB2->(Eof())
         Begin Transaction
-            RecLock("TRB2", .F.)
-                If !Empty(TRB2->TMP_OK)
+            If !Empty(TRB2->TMP_OK)
+                RecLock("TRB2", .F.)
                     If TRB2->TMP_LIQUID == "N" .AND. TRB2->TMP_VALCOM > 0 .AND. TRB2->TMP_VALPAG > 0
                         lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcao,@aAux,cCanal,TRB2->TMP_PARCEL)
                         If !lLiquida
@@ -493,49 +500,49 @@ User Function M0603G()
                             Next nW
                         EndIf
                     EndIf
-                EndIf
-                If lLiquida .AND. !lBaixado
-                    If TRB2->TMP_STATUS == "A"
-                        cStatus := "C"
-                    ElseIf TRB2->TMP_STATUS == "B"
-                        cStatus := "D"
+                    If lLiquida .AND. !lBaixado
+                        If TRB2->TMP_STATUS == "A"
+                            cStatus := "C"
+                        ElseIf TRB2->TMP_STATUS == "B"
+                            cStatus := "D"
+                        EndIf
+                        nPosArr := 0
+                        nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                        If nPosArr > 0
+                            TRB2->TMP_STATUS := cStatus
+                            aNaoRes[nPosArr,11] := cStatus
+                            aNaoRes[nPosArr,13] := "S"
+                        EndIf
+                        AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Liquidado" } )
+                    ElseIf !lLiquida .AND. lBaixado
+                        If TRB2->TMP_STATUS == "A"
+                            cStatus := "B"
+                        ElseIf TRB2->TMP_STATUS == "C"
+                            cStatus := "D"
+                        EndIf
+                        nPosArr := 0
+                        nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                        If nPosArr > 0
+                            TRB2->TMP_STATUS := cStatus
+                            aNaoRes[nPosArr,11] := cStatus
+                            aNaoRes[nPosArr,12] := "S"
+                        EndIf
+                        AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Baixado" } )
+                    ElseIf lLiquida .AND. lBaixado
+                        TRB2->TMP_STATUS := "D"
+                        nPosArr := 0
+                        nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                        If nPosArr > 0
+                            aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
+                            aNaoRes[nPosArr,12] := "S"
+                            aNaoRes[nPosArr,13] := "S"
+                        EndIf
+                        AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Baixado e Liquidado" } )
                     EndIf
-                    nPosArr := 0
-                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
-                    If nPosArr > 0
-                        TRB2->TMP_STATUS := cStatus
-                        aNaoRes[nPosArr,11] := cStatus
-                        aNaoRes[nPosArr,13] := "S"
-                    EndIf
-                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Liquidado" } )
-                ElseIf !lLiquida .AND. lBaixado
-                    If TRB2->TMP_STATUS == "A"
-                        cStatus := "B"
-                    ElseIf TRB2->TMP_STATUS == "C"
-                        cStatus := "D"
-                    EndIf
-                    nPosArr := 0
-                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
-                    If nPosArr > 0
-                        TRB2->TMP_STATUS := cStatus
-                        aNaoRes[nPosArr,11] := cStatus
-                        aNaoRes[nPosArr,12] := "S"
-                    EndIf
-                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Baixado" } )
-                ElseIf lLiquida .AND. lBaixado
-                    TRB2->TMP_STATUS := "D"
-                    nPosArr := 0
-                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
-                    If nPosArr > 0
-                        aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
-                        aNaoRes[nPosArr,12] := "S"
-                        aNaoRes[nPosArr,13] := "S"
-                    EndIf
-                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Título Baixado e Liquidado" } )
-                EndIf
-                lLiquida := .F.
-                lBaixado := .F.
-            MsUnLock()
+                    lLiquida := .F.
+                    lBaixado := .F.
+                MsUnLock()
+            EndIf
             TRB2->(dbSkip())
         End Transaction
     EndDo
@@ -1404,8 +1411,8 @@ User Function M0603X()
 
     While !TRB2->(Eof())
         Begin Transaction
-            RecLock("TRB2",.F.)
-                If !Empty(TRB2->TMP_OK)
+            If !Empty(TRB2->TMP_OK)
+                RecLock("TRB2",.F.)
                     If TRB2->TMP_LIQUID == "S"
                         lLiquida := U_M0603H(TRB2->TMP_CLIENT,TRB2->TMP_LOJA,TRB2->TMP_TITULO,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,cPrefixo,cPreLiq,cTpTit,TRB2->TMP_CODMAR,@cMsg,nOpcLq,@aAux,cCanal,TRB2->TMP_PARCEL)
                         If !lLiquida
@@ -1422,47 +1429,47 @@ User Function M0603X()
                             TRB2->TMP_BAIXA := "N"
                         EndIf
                     EndIf
-                EndIf
-                If lLiquida .AND. !lBaixado
-                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Liquidação de título excluída." } )
-                    If TRB2->TMP_STATUS == "D"
-                        TRB2->TMP_STATUS := "B"
-                    ElseIf TRB2->TMP_STATUS == "C"
+                    If lLiquida .AND. !lBaixado
+                        AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Liquidação de título excluída." } )
+                        If TRB2->TMP_STATUS == "D"
+                            TRB2->TMP_STATUS := "B"
+                        ElseIf TRB2->TMP_STATUS == "C"
+                            TRB2->TMP_STATUS := "A"
+                        EndIf
+                        nPosArr := 0
+                        nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                        If nPosArr > 0
+                            aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
+                            aNaoRes[nPosArr,13] := "N"
+                        EndIf
+                    ElseIf !lLiquida .AND. lBaixado
+                        AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Baixa de título excluída." } )
+                        If TRB2->TMP_STATUS == "D"
+                            TRB2->TMP_STATUS := "C"
+                        ElseIf TRB2->TMP_STATUS == "B"
+                            TRB2->TMP_STATUS := "A"
+                        EndIf
+                        nPosArr := 0
+                        nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                        If nPosArr > 0
+                            aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
+                            aNaoRes[nPosArr,12] := "N"
+                        EndIf
+                    ElseIf lLiquida .AND. lBaixado
+                        AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Baixa e liquidação de título excluída." } )
                         TRB2->TMP_STATUS := "A"
+                        nPosArr := 0
+                        nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
+                        If nPosArr > 0
+                            aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
+                            aNaoRes[nPosArr,12] := "N"
+                            aNaoRes[nPosArr,13] := "N"
+                        EndIf
                     EndIf
-                    nPosArr := 0
-                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
-                    If nPosArr > 0
-                        aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
-                        aNaoRes[nPosArr,13] := "N"
-                    EndIf
-                ElseIf !lLiquida .AND. lBaixado
-                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Baixa de título excluída." } )
-                    If TRB2->TMP_STATUS == "D"
-                        TRB2->TMP_STATUS := "C"
-                    ElseIf TRB2->TMP_STATUS == "B"
-                        TRB2->TMP_STATUS := "A"
-                    EndIf
-                    nPosArr := 0
-                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
-                    If nPosArr > 0
-                        aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
-                        aNaoRes[nPosArr,12] := "N"
-                    EndIf
-                ElseIf lLiquida .AND. lBaixado
-                    AADD( aImprime, { TRB2->TMP_CLIENT,TRB2->TMP_LOJA,cPrefixo,TRB2->TMP_TITULO,cTpTit,TRB2->TMP_VALPAG,TRB2->TMP_VALCOM,DTOS(ddatabase),"Baixa e liquidação de título excluída." } )
-                    TRB2->TMP_STATUS := "A"
-                    nPosArr := 0
-                    nPosArr := aScan( aNaoRes, {|x| AllTrim(x[10]) == Alltrim(TRB2->TMP_CODMAR) } )
-                    If nPosArr > 0
-                        aNaoRes[nPosArr,11] := TRB2->TMP_STATUS
-                        aNaoRes[nPosArr,12] := "N"
-                        aNaoRes[nPosArr,13] := "N"
-                    EndIf
-                EndIf
-                lLiquida := .F.
-                lBaixado := .F.
-            MsUnlock()
+                    lLiquida := .F.
+                    lBaixado := .F.
+                MsUnlock()
+            EndIf
             TRB2->(dbSkip())
         End Transaction
     EndDo

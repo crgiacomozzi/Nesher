@@ -126,8 +126,7 @@ User Function A0602A(cFilSC5,cPedSC5,cPedInt,cOrderId)
         oRest:SetPostParams(U_A0602B(cFilSC5,cPedSC5,cOrderId))
 
         If oRest:Post(aHeader)
-            Aviso("Atenção!","Integração realizada com sucesso!!!.",{"Ok"})
-            ConOut("POST", oRest:GetResult())
+            FWAlertSuccess("Integração realizada com sucesso!!!",cTitulo)
             dbSelectArea("SC5")
             SC5->(DbSetOrder(1))
             If SC5->(dbSeek(cFilSC5+cPedSC5))
@@ -136,13 +135,18 @@ User Function A0602A(cFilSC5,cPedSC5,cPedInt,cOrderId)
                 MsUnlock()
             EndIf
         Else
-            Aviso("Atenção!","Erro ao realizar a integração " + oRest:GetLastError(),{"Ok"})
-            ConOut("POST", oRest:GetLastError())
+            oJson := JsonObject():new()
+            cJson := oRest:GetResult()
+            cParser  := oJson:FromJson(cJson)
+            If Empty(cParser)
+                FWAlertError("Erro ao realizar a integração - " + oRest:GetLastError() + " - " + oJson['response'] + ".",cTitulo)
+            Else
+                FWAlertError("Erro ao realizar a integração - " + oRest:GetLastError() + ".",cTitulo)
+            EndIf
         EndIf
-
         FreeObj(oRest)
     Else
-        Aviso("Atenção!","O título já foi integrado com a Koncili, deverá ser utilizada a rotina de alteração.",{"Ok"})
+        FWAlertError("O título já foi integrado com a Koncili, deverá ser utilizada a rotina de alteração.",cTitulo)
     EndIf
 
     FreeObj(oRest)
